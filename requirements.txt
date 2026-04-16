@@ -6,3 +6,4 @@ django-cors-headers==4.7.0
 django-crispy-forms==2.6
 django-widget-tweaks==1.5.0
 crispy-bootstrap5
+whitenoise

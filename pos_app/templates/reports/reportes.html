@@ -1,0 +1,330 @@
+{% extends 'base/base.html' %}
+{% block title %}Reportes — POS Pro{% endblock %}
+{% block page_title %}Reportes y Estadísticas{% endblock %}
+
+{% block content %}
+
+<!-- Filtros de período -->
+<div class="card-pos mb-4">
+    <div class="card-pos-body">
+        <form method="get" class="d-flex gap-3 flex-wrap align-items-end">
+            <div>
+                <label class="form-label">Período Rápido</label>
+                <div class="d-flex gap-2">
+                    {% for p, label in peridos_choices %}{% endfor %}
+                    <a href="?periodo=hoy" class="btn-outline-pos {% if periodo == 'hoy' %}active{% endif %}" style="{% if periodo == 'hoy' %}background:var(--accent);color:#fff;{% endif %}">Hoy</a>
+                    <a href="?periodo=semana" class="btn-outline-pos" style="{% if periodo == 'semana' %}background:var(--accent);color:#fff;{% endif %}">7 días</a>
+                    <a href="?periodo=mes" class="btn-outline-pos" style="{% if periodo == 'mes' %}background:var(--accent);color:#fff;{% endif %}">Este mes</a>
+                    <a href="?periodo=año" class="btn-outline-pos" style="{% if periodo == 'año' %}background:var(--accent);color:#fff;{% endif %}">Este año</a>
+                </div>
+            </div>
+            <div>
+                <label class="form-label">Fecha Inicio</label>
+                <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}" class="form-control" style="width:150px">
+            </div>
+            <div>
+                <label class="form-label">Fecha Fin</label>
+                <input type="date" name="fecha_fin" value="{{ fecha_fin }}" class="form-control" style="width:150px">
+            </div>
+            <button type="submit" name="periodo" value="personalizado" class="btn-accent" style="align-self:flex-end">
+                Aplicar
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card accent">
+            <div class="stat-icon accent"><i class="bi bi-receipt-cutoff"></i></div>
+            <div class="stat-label">Total Ventas</div>
+            <div class="stat-value">{{ resumen.num_ventas }}</div>
+            <div class="stat-sub">transacciones</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card info">
+            <div class="stat-icon info"><i class="bi bi-cash-stack"></i></div>
+            <div class="stat-label">Ingresos</div>
+            <div class="stat-value">${{ resumen.total_ventas|floatformat:0 }}</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card success">
+            <div class="stat-icon success"><i class="bi bi-graph-up-arrow"></i></div>
+            <div class="stat-label">Ganancias</div>
+            <div class="stat-value">${{ resumen.total_ganancias|floatformat:0 }}</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card warning">
+            <div class="stat-icon warning"><i class="bi bi-ticket-perforated"></i></div>
+            <div class="stat-label">Ticket Promedio</div>
+            <div class="stat-value">${{ ticket_promedio|floatformat:0 }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfico principal por día + Métodos de pago -->
+<div class="row g-3 mb-4">
+    <div class="col-xl-8">
+        <div class="card-pos">
+            <div class="card-pos-header">
+                <span><i class="bi bi-bar-chart-line me-2" style="color:var(--accent)"></i>Ventas y Ganancias por Día</span>
+            </div>
+            <div class="card-pos-body">
+                {% if labels_dias %}
+                <canvas id="chartDias" height="110"></canvas>
+                {% else %}
+                <div style="text-align:center;padding:60px;color:var(--text-muted)">
+                    <i class="bi bi-bar-chart" style="font-size:40px;display:block;margin-bottom:12px;opacity:0.3"></i>
+                    Sin datos en este período
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="card-pos">
+            <div class="card-pos-header">
+                <span><i class="bi bi-pie-chart me-2" style="color:var(--info)"></i>Métodos de Pago</span>
+            </div>
+            <div class="card-pos-body">
+                {% if por_metodo %}
+                <canvas id="chartMetodos" height="160"></canvas>
+                <div class="mt-3">
+                    {% for m in por_metodo %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span style="font-size:13px;font-weight:600">{{ m.metodo_pago|capfirst }}</span>
+                        <div style="text-align:right">
+                            <span style="font-size:13px;font-weight:700">${{ m.total|floatformat:0 }}</span>
+                            <span style="font-size:11px;color:var(--text-muted);margin-left:6px">({{ m.num }} vtas)</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p style="text-align:center;color:var(--text-muted);padding:40px 0">Sin datos</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top productos + Ventas mensuales -->
+<div class="row g-3 mb-4">
+    <div class="col-xl-6">
+        <div class="card-pos">
+            <div class="card-pos-header">
+                <span><i class="bi bi-trophy me-2" style="color:var(--warning)"></i>Top 10 Productos del Período</span>
+            </div>
+            <div class="p-0">
+                <table class="table table-pos mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Producto</th>
+                            <th>Unidades</th>
+                            <th>Ingresos</th>
+                            <th>Ganancia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in top_productos %}
+                        <tr>
+                            <td style="font-weight:800;color:var(--warning)">{{ forloop.counter }}</td>
+                            <td>
+                                <div style="font-size:13px;font-weight:600">{{ p.producto__nombre }}</div>
+                                <div style="font-size:11px;color:var(--text-muted)">{{ p.producto__sku }}</div>
+                            </td>
+                            <td style="font-weight:700">{{ p.qty }}</td>
+                            <td>${{ p.ingresos|floatformat:0 }}</td>
+                            <td style="color:var(--success);font-weight:600">${{ p.ganancia|floatformat:0 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted)">Sin datos</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-6">
+        <div class="card-pos">
+            <div class="card-pos-header">
+                <span><i class="bi bi-calendar3 me-2" style="color:var(--info)"></i>Ventas Últimos 12 Meses</span>
+            </div>
+            <div class="card-pos-body">
+                {% if labels_meses %}
+                <canvas id="chartMeses" height="200"></canvas>
+                {% else %}
+                <div style="text-align:center;padding:60px;color:var(--text-muted)">Sin datos</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stock bajo -->
+{% if stock_bajo %}
+<div class="card-pos">
+    <div class="card-pos-header" style="border-color:rgba(245,158,11,0.3)">
+        <span style="color:var(--warning)"><i class="bi bi-exclamation-triangle me-2"></i>Alerta: Productos con Stock Bajo ({{ stock_bajo.count }})</span>
+        <a href="{% url 'inventario' %}?stock=bajo" class="btn-outline-pos" style="font-size:12px;padding:5px 12px;border-color:rgba(245,158,11,0.3);color:var(--warning)">
+            Ver inventario →
+        </a>
+    </div>
+    <div class="p-0">
+        <table class="table table-pos mb-0">
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Producto</th>
+                    <th>Categoría</th>
+                    <th>Stock Actual</th>
+                    <th>Stock Mínimo</th>
+                    <th>Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in stock_bajo %}
+                <tr>
+                    <td><span class="badge-pos badge-accent">{{ p.sku }}</span></td>
+                    <td style="font-weight:600">{{ p.nombre }}</td>
+                    <td style="color:var(--text-secondary);font-size:13px">{{ p.categoria.nombre|default:"—" }}</td>
+                    <td>
+                        <span style="font-size:18px;font-weight:800;color:{% if p.stock == 0 %}var(--danger){% else %}var(--warning){% endif %}">
+                            {{ p.stock }}
+                        </span>
+                    </td>
+                    <td style="color:var(--text-muted)">{{ p.stock_minimo }}</td>
+                    <td>
+                        {% if p.stock == 0 %}
+                            <span class="badge-pos badge-danger">Sin stock</span>
+                        {% else %}
+                            <span class="badge-pos badge-warning">Stock bajo</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'producto_editar' p.pk %}" class="btn-outline-pos" style="font-size:12px;padding:4px 10px">Editar</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const chartDefaults = {
+    plugins: {
+        legend: { labels: { color: '#8b8fa8', font: { family: 'Plus Jakarta Sans', size: 12 }, boxWidth: 12 } },
+        tooltip: { callbacks: { label: ctx => ` $${ctx.raw.toLocaleString('es-CO')}` } }
+    },
+    scales: {
+        x: { grid: { color: '#252840' }, ticks: { color: '#8b8fa8', font: { size: 11 } } },
+        y: { grid: { color: '#252840' }, ticks: { color: '#8b8fa8', callback: v => '$' + v.toLocaleString('es-CO') } }
+    }
+};
+
+// Chart por días
+{% if labels_dias %}
+new Chart(document.getElementById('chartDias').getContext('2d'), {
+    type: 'bar',
+    data: {
+        labels: {{ labels_dias|safe }},
+        datasets: [
+            {
+                label: 'Ventas',
+                data: {{ data_ventas_dia|safe }},
+                backgroundColor: 'rgba(108,99,255,0.5)',
+                borderColor: '#6c63ff',
+                borderWidth: 2,
+                borderRadius: 5,
+                order: 2,
+            },
+            {
+                label: 'Ganancias',
+                type: 'line',
+                data: {{ data_ganancias_dia|safe }},
+                borderColor: '#22c55e',
+                backgroundColor: 'rgba(34,197,94,0.08)',
+                borderWidth: 2,
+                pointRadius: 3,
+                fill: true,
+                tension: 0.4,
+                order: 1,
+            }
+        ]
+    },
+    options: { ...chartDefaults, responsive: true }
+});
+{% endif %}
+
+// Chart métodos de pago
+{% if por_metodo %}
+const metodos = {{ por_metodo|safe }};
+new Chart(document.getElementById('chartMetodos').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+        labels: metodos.map(m => m.metodo_pago.charAt(0).toUpperCase() + m.metodo_pago.slice(1)),
+        datasets: [{
+            data: metodos.map(m => m.total),
+            backgroundColor: ['#6c63ff','#22c55e','#38bdf8','#f59e0b','#ef4444'],
+            borderWidth: 0,
+            hoverOffset: 6,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'bottom', labels: { color: '#8b8fa8', padding: 12, font: { size: 12 } } },
+            tooltip: { callbacks: { label: ctx => ` $${ctx.raw.toLocaleString('es-CO')}` } }
+        }
+    }
+});
+{% endif %}
+
+// Chart mensual
+{% if labels_meses %}
+new Chart(document.getElementById('chartMeses').getContext('2d'), {
+    type: 'line',
+    data: {
+        labels: {{ labels_meses|safe }},
+        datasets: [
+            {
+                label: 'Ventas',
+                data: {{ data_ventas_mes|safe }},
+                borderColor: '#6c63ff',
+                backgroundColor: 'rgba(108,99,255,0.08)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointBackgroundColor: '#6c63ff',
+            },
+            {
+                label: 'Ganancias',
+                data: {{ data_ganancias_mes|safe }},
+                borderColor: '#22c55e',
+                backgroundColor: 'rgba(34,197,94,0.06)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointBackgroundColor: '#22c55e',
+            }
+        ]
+    },
+    options: { ...chartDefaults, responsive: true }
+});
+{% endif %}
+</script>
+{% endblock %}

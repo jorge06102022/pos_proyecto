@@ -1,0 +1,36 @@
+{% extends 'base/base.html' %}
+{% block title %}Eliminar Producto — POS Pro{% endblock %}
+{% block page_title %}Eliminar Producto{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card-pos">
+            <div class="card-pos-header" style="border-color:rgba(239,68,68,0.3)">
+                <span style="color:var(--danger)"><i class="bi bi-exclamation-triangle-fill me-2"></i>Confirmar Eliminación</span>
+            </div>
+            <div class="card-pos-body" style="text-align:center;padding:40px 30px">
+                <div style="font-size:50px;margin-bottom:16px">🗑️</div>
+                <h3 style="font-size:18px;margin-bottom:8px">¿Eliminar este producto?</h3>
+                <p style="color:var(--text-secondary);font-size:14px;margin-bottom:6px">
+                    <strong style="color:var(--text-primary)">{{ producto.nombre }}</strong>
+                </p>
+                <p style="color:var(--text-muted);font-size:13px;margin-bottom:28px">
+                    SKU: {{ producto.sku }} — Stock actual: {{ producto.stock }}
+                </p>
+                <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:12px;margin-bottom:24px;font-size:13px;color:var(--danger)">
+                    <i class="bi bi-info-circle me-2"></i>
+                    El producto será desactivado. El historial de ventas se conserva.
+                </div>
+                <form method="post" class="d-flex gap-3 justify-content-center">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-accent" style="background:var(--danger);min-width:140px">
+                        <i class="bi bi-trash me-2"></i>Sí, eliminar
+                    </button>
+                    <a href="{% url 'inventario' %}" class="btn-outline-pos">Cancelar</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

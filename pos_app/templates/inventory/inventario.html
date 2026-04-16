@@ -1,0 +1,135 @@
+{% extends 'base/base.html' %}
+{% block title %}Inventario — POS Pro{% endblock %}
+{% block page_title %}Inventario{% endblock %}
+
+{% block content %}
+
+<!-- Toolbar -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <form method="get" class="d-flex gap-2 flex-wrap">
+            <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Buscar por nombre o SKU..." style="width:240px">
+            <select name="categoria" class="form-select" style="width:160px">
+                <option value="">Todas las categorías</option>
+                {% for cat in categorias %}
+                <option value="{{ cat.pk }}" {% if cat_id == cat.pk|stringformat:'s' %}selected{% endif %}>{{ cat.nombre }}</option>
+                {% endfor %}
+            </select>
+            <select name="stock" class="form-select" style="width:150px">
+                <option value="">Todo el stock</option>
+                <option value="bajo" {% if filtro_stock == 'bajo' %}selected{% endif %}>⚠ Stock bajo</option>
+                <option value="sin" {% if filtro_stock == 'sin' %}selected{% endif %}>✗ Sin stock</option>
+            </select>
+            <button type="submit" class="btn-accent">Filtrar</button>
+            {% if q or cat_id or filtro_stock %}
+            <a href="{% url 'inventario' %}" class="btn-outline-pos">✕ Limpiar</a>
+            {% endif %}
+        </form>
+    </div>
+    <a href="{% url 'producto_crear' %}" class="btn-accent">
+        <i class="bi bi-plus-lg me-1"></i> Nuevo Producto
+    </a>
+</div>
+
+{% if total_stock_bajo > 0 %}
+<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:10px">
+    <i class="bi bi-exclamation-triangle-fill" style="color:var(--warning);font-size:18px"></i>
+    <span style="font-size:14px"><strong>{{ total_stock_bajo }} productos</strong> tienen stock por debajo del mínimo.
+    <a href="?stock=bajo" style="color:var(--warning)">Ver productos con stock bajo →</a></span>
+</div>
+{% endif %}
+
+<!-- Table -->
+<div class="card-pos">
+    <div class="card-pos-header">
+        <span><i class="bi bi-table me-2" style="color:var(--accent)"></i>Productos ({{ productos.paginator.count }} total)</span>
+    </div>
+    <div class="p-0">
+        <table class="table table-pos mb-0">
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Nombre</th>
+                    <th>Categoría</th>
+                    <th>P. Compra</th>
+                    <th>P. Venta</th>
+                    <th>Margen</th>
+                    <th>Stock</th>
+                    <th>Estado</th>
+                    <th style="text-align:right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in productos %}
+                <tr>
+                    <td><span class="badge-pos badge-accent">{{ p.sku }}</span></td>
+                    <td>
+                        <a href="{% url 'producto_detalle' p.pk %}" style="color:var(--text-primary);text-decoration:none;font-weight:600">
+                            {{ p.nombre }}
+                        </a>
+                    </td>
+                    <td style="color:var(--text-secondary);font-size:13px">
+                        {{ p.categoria.nombre|default:"—" }}
+                    </td>
+                    <td>${{ p.precio_compra|floatformat:0 }}</td>
+                    <td style="font-weight:600">${{ p.precio_venta|floatformat:0 }}</td>
+                    <td>
+                        <span style="color:var(--success);font-weight:600">{{ p.margen_ganancia }}%</span>
+                    </td>
+                    <td>
+                        {% if p.sin_stock %}
+                            <span style="color:var(--danger);font-weight:700">0</span>
+                        {% elif p.stock_bajo %}
+                            <span style="color:var(--warning);font-weight:700">{{ p.stock }} ⚠</span>
+                        {% else %}
+                            <span style="color:var(--success);font-weight:600">{{ p.stock }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if p.sin_stock %}
+                            <span class="badge-pos badge-danger">Sin stock</span>
+                        {% elif p.stock_bajo %}
+                            <span class="badge-pos badge-warning">Stock bajo</span>
+                        {% else %}
+                            <span class="badge-pos badge-success">OK</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align:right">
+                        <a href="{% url 'producto_editar' p.pk %}" class="btn-outline-pos" style="padding:5px 10px;font-size:12px;margin-right:4px">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="{% url 'producto_eliminar' p.pk %}" class="btn-outline-pos" style="padding:5px 10px;font-size:12px;border-color:rgba(239,68,68,0.3);color:var(--danger)">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="text-align:center;padding:50px;color:var(--text-muted)">
+                        <i class="bi bi-box-seam" style="font-size:40px;display:block;margin-bottom:12px"></i>
+                        No se encontraron productos
+                        {% if q or cat_id %} con esos filtros{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if productos.has_other_pages %}
+<div class="d-flex justify-content-center mt-4 gap-2">
+    {% if productos.has_previous %}
+    <a href="?page={{ productos.previous_page_number }}&q={{ q }}&categoria={{ cat_id }}&stock={{ filtro_stock }}" class="btn-outline-pos">← Anterior</a>
+    {% endif %}
+    <span style="padding:8px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;font-size:13px">
+        Página {{ productos.number }} de {{ productos.paginator.num_pages }}
+    </span>
+    {% if productos.has_next %}
+    <a href="?page={{ productos.next_page_number }}&q={{ q }}&categoria={{ cat_id }}&stock={{ filtro_stock }}" class="btn-outline-pos">Siguiente →</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

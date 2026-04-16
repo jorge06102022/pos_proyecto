@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}POS System{% endblock %}</title>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <style>
+        /* ─── Variables ─── */
+        :root {
+            --bg-app: #0f1117;
+            --bg-sidebar: #13151e;
+            --bg-card: #1a1d2e;
+            --bg-card-hover: #1f2235;
+            --border: #252840;
+            --accent: #6c63ff;
+            --accent-light: #8b85ff;
+            --accent-glow: rgba(108, 99, 255, 0.15);
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #38bdf8;
+            --text-primary: #e8eaf0;
+            --text-secondary: #8b8fa8;
+            --text-muted: #5a5f78;
+            --sidebar-width: 260px;
+            --font: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            font-family: var(--font);
+            background: var(--bg-app);
+            color: var(--text-primary);
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        /* ─── Sidebar ─── */
+        .sidebar {
+            position: fixed;
+            top: 0; left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            overflow-y: auto;
+        }
+        .sidebar-brand {
+            padding: 24px 20px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .brand-icon {
+            width: 40px; height: 40px;
+            background: var(--accent);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+        .brand-name {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-primary);
+            letter-spacing: -0.5px;
+        }
+        .brand-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .sidebar-nav { padding: 16px 12px; flex: 1; }
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding: 8px 12px 4px;
+            margin-top: 8px;
+        }
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.15s ease;
+            margin-bottom: 2px;
+        }
+        .nav-link:hover {
+            background: var(--accent-glow);
+            color: var(--text-primary);
+        }
+        .nav-link.active {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+        .nav-link i { font-size: 18px; width: 22px; }
+
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+        }
+        .user-badge {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        .user-avatar {
+            width: 34px; height: 34px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700; color: #fff;
+        }
+        .user-name { font-size: 13px; font-weight: 600; }
+        .user-role { font-size: 11px; color: var(--text-muted); }
+
+        /* ─── Main ─── */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+        }
+        .topbar {
+            background: var(--bg-sidebar);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .topbar-title {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+        .topbar-actions { display: flex; align-items: center; gap: 12px; }
+
+        .page-body { padding: 28px; }
+
+        /* ─── Cards ─── */
+        .card-pos {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .card-pos-header {
+            padding: 18px 20px 14px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 700;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .card-pos-body { padding: 20px; }
+
+        /* ─── Stat Cards ─── */
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 22px;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+        }
+        .stat-card.accent::before { background: var(--accent); }
+        .stat-card.success::before { background: var(--success); }
+        .stat-card.warning::before { background: var(--warning); }
+        .stat-card.danger::before { background: var(--danger); }
+        .stat-card.info::before { background: var(--info); }
+
+        .stat-card:hover { background: var(--bg-card-hover); transform: translateY(-2px); }
+        .stat-icon {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+            margin-bottom: 14px;
+        }
+        .stat-icon.accent { background: var(--accent-glow); color: var(--accent-light); }
+        .stat-icon.success { background: rgba(34,197,94,0.1); color: var(--success); }
+        .stat-icon.warning { background: rgba(245,158,11,0.1); color: var(--warning); }
+        .stat-icon.danger { background: rgba(239,68,68,0.1); color: var(--danger); }
+        .stat-icon.info { background: rgba(56,189,248,0.1); color: var(--info); }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            color: var(--text-primary);
+        }
+        .stat-sub {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+
+        /* ─── Tables ─── */
+        .table-pos {
+            color: var(--text-primary);
+            border-color: var(--border);
+        }
+        .table-pos thead th {
+            background: rgba(255,255,255,0.03);
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-color: var(--border);
+            padding: 12px 16px;
+        }
+        .table-pos tbody td {
+            border-color: var(--border);
+            padding: 12px 16px;
+            vertical-align: middle;
+            font-size: 14px;
+        }
+        .table-pos tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+        /* ─── Badges ─── */
+        .badge-pos {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-success { background: rgba(34,197,94,0.15); color: var(--success); }
+        .badge-warning { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .badge-danger { background: rgba(239,68,68,0.15); color: var(--danger); }
+        .badge-info { background: rgba(56,189,248,0.15); color: var(--info); }
+        .badge-accent { background: var(--accent-glow); color: var(--accent-light); }
+
+        /* ─── Buttons ─── */
+        .btn-accent {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 9px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            font-family: var(--font);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-accent:hover { background: var(--accent-light); color: #fff; box-shadow: 0 0 20px var(--accent-glow); }
+
+        .btn-outline-pos {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 13px;
+            font-family: var(--font);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-outline-pos:hover { border-color: var(--accent); color: var(--accent-light); }
+
+        /* ─── Forms ─── */
+        .form-control, .form-select {
+            background: var(--bg-app) !important;
+            border: 1px solid var(--border) !important;
+            color: var(--text-primary) !important;
+            border-radius: 10px !important;
+            padding: 10px 14px !important;
+            font-family: var(--font) !important;
+            font-size: 14px !important;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 0 3px var(--accent-glow) !important;
+        }
+        .form-control::placeholder { color: var(--text-muted) !important; }
+        .form-label { color: var(--text-secondary); font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+
+        /* ─── Alerts ─── */
+        .messages-container { position: fixed; top: 20px; right: 20px; z-index: 9999; width: 320px; }
+        .alert-pos {
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid;
+            animation: slideIn 0.3s ease;
+        }
+        .alert-pos.success { background: rgba(34,197,94,0.1); border-color: rgba(34,197,94,0.3); color: var(--success); }
+        .alert-pos.error { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: var(--danger); }
+        .alert-pos.warning { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.3); color: var(--warning); }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* ─── Scrollbar ─── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .main-content { margin-left: 0; }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- Messages -->
+{% if messages %}
+<div class="messages-container">
+    {% for message in messages %}
+    <div class="alert-pos {{ message.tags }}" onclick="this.remove()">
+        {% if message.tags == 'success' %}<i class="bi bi-check-circle-fill me-2"></i>
+        {% elif message.tags == 'error' %}<i class="bi bi-x-circle-fill me-2"></i>
+        {% else %}<i class="bi bi-exclamation-circle-fill me-2"></i>{% endif %}
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+<script>
+    setTimeout(() => {
+        document.querySelectorAll('.alert-pos').forEach(a => {
+            a.style.opacity = '0'; a.style.transition = 'opacity 0.5s';
+            setTimeout(() => a.remove(), 500);
+        });
+    }, 4000);
+</script>
+{% endif %}
+
+<!-- Sidebar -->
+<aside class="sidebar">
+    <div class="sidebar-brand">
+        <div class="brand-icon">🏪</div>
+        <div>
+            <div class="brand-name">POS Pro</div>
+            <div class="brand-sub">Sistema de Ventas</div>
+        </div>
+    </div>
+
+    <nav class="sidebar-nav">
+        <div class="nav-section-title">Principal</div>
+        <a href="{% url 'dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+            <i class="bi bi-grid-3x3-gap-fill"></i> Dashboard
+        </a>
+
+        <div class="nav-section-title">Ventas</div>
+        <a href="{% url 'pos' %}" class="nav-link {% if request.resolver_match.url_name == 'pos' %}active{% endif %}">
+            <i class="bi bi-cart4"></i> Punto de Venta
+        </a>
+        <a href="{% url 'historial_ventas' %}" class="nav-link {% if request.resolver_match.url_name == 'historial_ventas' %}active{% endif %}">
+            <i class="bi bi-receipt-cutoff"></i> Historial Ventas
+        </a>
+
+        <div class="nav-section-title">Inventario</div>
+        <a href="{% url 'inventario' %}" class="nav-link {% if request.resolver_match.url_name == 'inventario' %}active{% endif %}">
+            <i class="bi bi-boxes"></i> Inventario
+        </a>
+        <a href="{% url 'producto_crear' %}" class="nav-link {% if request.resolver_match.url_name == 'producto_crear' %}active{% endif %}">
+            <i class="bi bi-plus-square"></i> Nuevo Producto
+        </a>
+
+        <div class="nav-section-title">Análisis</div>
+        <a href="{% url 'reportes' %}" class="nav-link {% if request.resolver_match.url_name == 'reportes' %}active{% endif %}">
+            <i class="bi bi-bar-chart-fill"></i> Reportes
+        </a>
+    </nav>
+
+    <div class="sidebar-footer">
+        <div class="user-badge">
+            <div class="user-avatar">{{ request.user.username|first|upper }}</div>
+            <div>
+                <div class="user-name">{{ request.user.username }}</div>
+                <div class="user-role">Administrador</div>
+            </div>
+            <a href="{% url 'logout' %}" class="ms-auto text-muted" title="Cerrar sesión">
+                <i class="bi bi-box-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+</aside>
+
+<!-- Main Content -->
+<div class="main-content">
+    <div class="topbar">
+        <div class="topbar-title">{% block page_title %}Dashboard{% endblock %}</div>
+        <div class="topbar-actions">
+            <a href="{% url 'pos' %}" class="btn-accent text-decoration-none">
+                <i class="bi bi-cart-plus me-1"></i> Nueva Venta
+            </a>
+            <span id="stock-alert-badge" class="badge-pos badge-warning" style="display:none; cursor:pointer;"
+                  onclick="window.location='{% url 'inventario' %}?stock=bajo'">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                <span id="stock-count">0</span> stock bajo
+            </span>
+        </div>
+    </div>
+
+    <div class="page-body">
+        {% block content %}{% endblock %}
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Verificar stock bajo al cargar
+    fetch('/api/stock-bajo/')
+        .then(r => r.json())
+        .then(data => {
+            if (data.productos && data.productos.length > 0) {
+                document.getElementById('stock-count').textContent = data.productos.length;
+                document.getElementById('stock-alert-badge').style.display = 'inline-flex';
+            }
+        })
+        .catch(() => {});
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

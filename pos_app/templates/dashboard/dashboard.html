@@ -1,0 +1,227 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Dashboard — POS Pro{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-end mb-3">
+    <a href="{% url 'reporte_diario' %}" class="btn-accent">
+        <i class="bi bi-printer me-1"></i> Imprimir reporte del día
+    </a>
+</div>
+<!-- Stat Cards Row -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card accent">
+            <div class="stat-icon accent"><i class="bi bi-cash-stack"></i></div>
+            <div class="stat-label">Ventas Hoy</div>
+            <div class="stat-value">${{ total_hoy|floatformat:0 }}</div>
+            <div class="stat-sub">{{ num_ventas_hoy }} transacciones</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card success">
+            <div class="stat-icon success"><i class="bi bi-graph-up-arrow"></i></div>
+            <div class="stat-label">Ganancia Hoy</div>
+            <div class="stat-value">${{ ganancia_hoy|floatformat:0 }}</div>
+            <div class="stat-sub">Utilidad neta del día</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card info">
+            <div class="stat-icon info"><i class="bi bi-calendar-month"></i></div>
+            <div class="stat-label">Ventas del Mes</div>
+            <div class="stat-value">${{ total_mes|floatformat:0 }}</div>
+            <div class="stat-sub">Ganancia: ${{ ganancia_mes|floatformat:0 }}</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card {% if productos_sin_stock > 0 %}danger{% elif productos_stock_bajo > 0 %}warning{% else %}success{% endif %}">
+            <div class="stat-icon {% if productos_sin_stock > 0 %}danger{% elif productos_stock_bajo > 0 %}warning{% else %}success{% endif %}">
+                <i class="bi bi-boxes"></i>
+            </div>
+            <div class="stat-label">Inventario</div>
+            <div class="stat-value">{{ total_productos }}</div>
+            <div class="stat-sub">
+                {% if productos_sin_stock > 0 %}
+                    <span style="color:var(--danger)"><i class="bi bi-exclamation-circle"></i> {{ productos_sin_stock }} sin stock</span>
+                {% elif productos_stock_bajo > 0 %}
+                    <span style="color:var(--warning)"><i class="bi bi-exclamation-triangle"></i> {{ productos_stock_bajo }} bajo mínimo</span>
+                {% else %}
+                    <span style="color:var(--success)"><i class="bi bi-check-circle"></i> Inventario OK</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-4">
+    <div class="col-xl-8">
+        <div class="card-pos">
+            <div class="card-pos-header">
+                <span><i class="bi bi-activity me-2" style="color:var(--accent)"></i>Ventas y Ganancias — Últimos 7 Días</span>
+            </div>
+            <div class="card-pos-body">
+                <canvas id="chart7dias" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="card-pos h-100">
+            <div class="card-pos-header">
+                <span><i class="bi bi-trophy me-2" style="color:var(--warning)"></i>Top Productos (Mes)</span>
+            </div>
+            <div class="card-pos-body">
+                {% for p in top_productos %}
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="d-flex align-items-center gap-2" style="min-width:0">
+                        <span class="badge-pos badge-accent" style="min-width:22px;text-align:center">{{ forloop.counter }}</span>
+                        <div style="overflow:hidden">
+                            <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.producto__nombre }}</div>
+                            <div style="font-size:11px;color:var(--text-muted)">{{ p.total_qty }} unidades</div>
+                        </div>
+                    </div>
+                    <div style="font-size:13px;font-weight:700;white-space:nowrap">${{ p.total_ingresos|floatformat:0 }}</div>
+                </div>
+                {% empty %}
+                <p style="color:var(--text-muted);font-size:13px;text-align:center;margin-top:30px">Sin ventas este mes</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Sales -->
+<div class="row g-3">
+    <div class="col-xl-8">
+        <div class="card-pos">
+            <div class="card-pos-header">
+                <span><i class="bi bi-receipt me-2" style="color:var(--info)"></i>Últimas Ventas</span>
+                <a href="{% url 'historial_ventas' %}" class="btn-outline-pos" style="font-size:12px;padding:5px 12px">Ver todas →</a>
+            </div>
+            <div class="card-pos-body p-0">
+                <table class="table table-pos mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Fecha</th>
+                            <th>Productos</th>
+                            <th>Pago</th>
+                            <th>Total</th>
+                            <th>Ganancia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for venta in ultimas_ventas %}
+                        <tr>
+                            <td><a href="{% url 'venta_detalle' venta.pk %}" style="color:var(--accent-light);text-decoration:none;font-weight:600">#{{ venta.pk }}</a></td>
+                            <td style="color:var(--text-secondary);font-size:13px">{{ venta.fecha|date:"d/m/Y H:i" }}</td>
+                            <td><span class="badge-pos badge-accent">{{ venta.detalles.count }} ítem(s)</span></td>
+                            <td><span class="badge-pos badge-info">{{ venta.get_metodo_pago_display }}</span></td>
+                            <td style="font-weight:700">${{ venta.total_venta|floatformat:0 }}</td>
+                            <td style="color:var(--success);font-weight:600">${{ venta.total_ganancia|floatformat:0 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:30px">No hay ventas registradas</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4">
+        <div class="card-pos">
+            <div class="card-pos-header">
+                <span><i class="bi bi-exclamation-triangle me-2" style="color:var(--warning)"></i>Alertas de Stock</span>
+                <a href="{% url 'inventario' %}?stock=bajo" class="btn-outline-pos" style="font-size:12px;padding:5px 12px">Ver →</a>
+            </div>
+            <div class="card-pos-body" id="stock-alert-list">
+                <div style="text-align:center;color:var(--text-muted);font-size:13px;padding:20px 0">
+                    <i class="bi bi-arrow-repeat" style="font-size:24px"></i><br>Cargando...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ─── Chart 7 días ───
+const ctx7 = document.getElementById('chart7dias').getContext('2d');
+const labels7 = {{ labels_7dias|safe }};
+const dataV7 = {{ data_ventas_7dias|safe }};
+const dataG7 = {{ data_ganancias_7dias|safe }};
+
+new Chart(ctx7, {
+    type: 'bar',
+    data: {
+        labels: labels7,
+        datasets: [
+            {
+                label: 'Ventas',
+                data: dataV7,
+                backgroundColor: 'rgba(108,99,255,0.5)',
+                borderColor: '#6c63ff',
+                borderWidth: 2,
+                borderRadius: 6,
+                order: 2
+            },
+            {
+                label: 'Ganancias',
+                data: dataG7,
+                type: 'line',
+                borderColor: '#22c55e',
+                backgroundColor: 'rgba(34,197,94,0.1)',
+                borderWidth: 2,
+                pointBackgroundColor: '#22c55e',
+                pointRadius: 4,
+                fill: true,
+                tension: 0.4,
+                order: 1
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { labels: { color: '#8b8fa8', font: { family: 'Plus Jakarta Sans', size: 12 } } },
+            tooltip: {
+                callbacks: {
+                    label: ctx => ` $${ctx.raw.toLocaleString('es-CO')}`
+                }
+            }
+        },
+        scales: {
+            x: { grid: { color: '#252840' }, ticks: { color: '#8b8fa8' } },
+            y: { grid: { color: '#252840' }, ticks: { color: '#8b8fa8', callback: v => '$' + v.toLocaleString('es-CO') } }
+        }
+    }
+});
+
+// ─── Stock alerts ───
+fetch('/api/stock-bajo/')
+    .then(r => r.json())
+    .then(data => {
+        const el = document.getElementById('stock-alert-list');
+        if (!data.productos || data.productos.length === 0) {
+            el.innerHTML = '<div style="text-align:center;color:var(--success);padding:20px 0"><i class="bi bi-check-circle" style="font-size:28px"></i><br><span style="font-size:13px;margin-top:8px;display:block">Todo el inventario OK</span></div>';
+            return;
+        }
+        el.innerHTML = data.productos.map(p => `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:8px 12px;background:rgba(245,158,11,0.06);border-radius:8px;border-left:3px solid var(--warning)">
+                <div>
+                    <div style="font-size:13px;font-weight:600">${p.nombre}</div>
+                    <div style="font-size:11px;color:var(--text-muted)">${p.sku}</div>
+                </div>
+                <div style="text-align:right">
+                    <div style="font-size:16px;font-weight:800;color:${p.stock === 0 ? 'var(--danger)' : 'var(--warning)'}">${p.stock}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">mín: ${p.stock_minimo}</div>
+                </div>
+            </div>
+        `).join('');
+    });
+</script>
+{% endblock %}

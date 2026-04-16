@@ -1,0 +1,100 @@
+{% extends 'base/base.html' %}
+{% block title %}Venta #{{ venta.pk }} — POS Pro{% endblock %}
+{% block page_title %}Detalle de Venta #{{ venta.pk }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-end mb-4 gap-2">
+    <button onclick="window.print()" class="btn-outline-pos">
+        <i class="bi bi-printer me-1"></i> Imprimir
+    </button>
+    <a href="{% url 'historial_ventas' %}" class="btn-outline-pos">← Volver</a>
+</div>
+
+<div class="row g-3">
+    <!-- Resumen -->
+    <div class="col-lg-4">
+        <div class="card-pos mb-3">
+            <div class="card-pos-header">
+                <span><i class="bi bi-info-circle me-2" style="color:var(--accent)"></i>Información</span>
+            </div>
+            <div class="card-pos-body">
+                <div class="mb-3">
+                    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;font-weight:700">Número de Venta</div>
+                    <div style="font-size:22px;font-weight:800;color:var(--accent-light)">#{{ venta.pk }}</div>
+                </div>
+                <div class="mb-3">
+                    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;font-weight:700">Fecha y Hora</div>
+                    <div style="font-size:15px;font-weight:600">{{ venta.fecha|date:"d/m/Y H:i" }}</div>
+                </div>
+                <div class="mb-3">
+                    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;font-weight:700">Método de Pago</div>
+                    <div style="font-size:15px;font-weight:600">{{ venta.get_metodo_pago_display }}</div>
+                </div>
+                <hr style="border-color:var(--border)">
+                <div class="d-flex justify-content-between mb-2">
+                    <span style="color:var(--text-secondary);font-size:13px">Total Venta</span>
+                    <span style="font-weight:700;font-size:15px">${{ venta.total_venta|floatformat:0 }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span style="color:var(--text-secondary);font-size:13px">Costo Total</span>
+                    <span style="font-size:13px;color:var(--text-muted)">
+                        ${% with costo=venta.total_venta|add:"-"|add:venta.total_ganancia %}{{ venta.total_venta|floatformat:0 }}{% endwith %}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span style="color:var(--success);font-size:13px;font-weight:600">Ganancia Neta</span>
+                    <span style="color:var(--success);font-weight:800;font-size:16px">${{ venta.total_ganancia|floatformat:0 }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detalle -->
+    <div class="col-lg-8">
+        <div class="card-pos">
+            <div class="card-pos-header">
+                <span><i class="bi bi-list-ul me-2" style="color:var(--info)"></i>Productos Vendidos ({{ detalles.count }})</span>
+            </div>
+            <div class="p-0">
+                <table class="table table-pos mb-0">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>SKU</th>
+                            <th>Cantidad</th>
+                            <th>P. Venta</th>
+                            <th>P. Compra</th>
+                            <th>Subtotal</th>
+                            <th>Ganancia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in detalles %}
+                        <tr>
+                            <td style="font-weight:600">
+                                <a href="{% url 'producto_detalle' d.producto.pk %}" style="color:var(--text-primary);text-decoration:none">
+                                    {{ d.producto.nombre }}
+                                </a>
+                            </td>
+                            <td><span class="badge-pos badge-accent">{{ d.producto.sku }}</span></td>
+                            <td style="font-weight:700;font-size:16px">{{ d.cantidad }}</td>
+                            <td>${{ d.precio_venta|floatformat:0 }}</td>
+                            <td style="color:var(--text-muted)">${{ d.precio_compra|floatformat:0 }}</td>
+                            <td style="font-weight:700">${{ d.subtotal|floatformat:0 }}</td>
+                            <td style="color:var(--success);font-weight:600">${{ d.ganancia|floatformat:0 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr style="background:rgba(108,99,255,0.06)">
+                            <td colspan="5" style="font-weight:700;font-size:14px;padding:14px 16px">TOTALES</td>
+                            <td style="font-weight:800;font-size:16px">${{ venta.total_venta|floatformat:0 }}</td>
+                            <td style="color:var(--success);font-weight:800;font-size:16px">${{ venta.total_ganancia|floatformat:0 }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

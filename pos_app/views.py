@@ -904,3 +904,17 @@ def reporte_diario_pdf(request):
     buffer.close()
     response.write(pdf_bytes)
     return response
+
+from django.http import HttpResponse
+from django.contrib.auth.models import User
+
+def crear_admin(request):
+    if not User.objects.filter(username="admin").exists():
+        User.objects.create_superuser(
+            username="wiliam",
+            email="jordav8a@gmail.com",
+            password="123456"
+        )
+        return HttpResponse("✅ Admin creado correctamente")
+    
+    return HttpResponse("⚠️ El admin ya existe")

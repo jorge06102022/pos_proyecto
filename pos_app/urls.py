@@ -30,5 +30,5 @@ urlpatterns = [
     # APIs
     path('api/stock-bajo/', views.api_stock_bajo, name='api_stock_bajo'),
     path('reporte-diario/', views.reporte_diario_pdf, name='reporte_diario'),
-    path('crear-admin/', views.crear_admin),
+    path("crear-admin/", views.crear_admin),
 ]

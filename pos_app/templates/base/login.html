@@ -4,163 +4,743 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POS Pro — Iniciar Sesión</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         :root {
-            --bg: #0f1117;
-            --card: #1a1d2e;
-            --border: #252840;
-            --accent: #6c63ff;
-            --accent-glow: rgba(108,99,255,0.2);
-            --text: #e8eaf0;
-            --muted: #5a5f78;
+            --bg:           #07080f;
+            --panel:        #0d0f1c;
+            --card:         #11132200;
+            --border:       rgba(108,99,255,0.18);
+            --accent:       #6c63ff;
+            --accent2:      #a78bfa;
+            --glow:         rgba(108,99,255,0.35);
+            --glow-soft:    rgba(108,99,255,0.12);
+            --green:        #22d3a0;
+            --text:         #eceef8;
+            --muted:        #4a4d68;
+            --muted2:       #7b7fa0;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            height: 100%;
+            font-family: 'DM Sans', sans-serif;
             background: var(--bg);
             color: var(--text);
+            overflow: hidden;
+        }
+
+        /* ─── CANVAS BACKGROUND ─── */
+        #bg-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ─── NOISE GRAIN ─── */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+            opacity: 0.45;
+        }
+
+        /* ─── LAYOUT ─── */
+        .scene {
+            position: relative;
+            z-index: 10;
+            display: grid;
+            grid-template-columns: 1fr 480px 1fr;
+            grid-template-rows: 1fr;
             min-height: 100vh;
+            align-items: center;
+        }
+
+        /* ─── LEFT PANEL ─── */
+        .left-panel {
+            grid-column: 1;
+            padding: 60px 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 48px;
+            opacity: 0;
+            transform: translateX(-30px);
+            animation: fadeSlideRight 0.9s cubic-bezier(0.16,1,0.3,1) 0.2s forwards;
+        }
+
+        .brand-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(108,99,255,0.1);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 8px 16px;
+            width: fit-content;
+        }
+        .brand-badge .dot {
+            width: 7px; height: 7px;
+            background: var(--green);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse-dot 2s infinite;
+        }
+        .brand-badge span {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--muted2);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .left-headline {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .left-headline h2 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(32px, 3.5vw, 52px);
+            font-weight: 800;
+            line-height: 1.05;
+            letter-spacing: -1.5px;
+            background: linear-gradient(135deg, #fff 30%, var(--accent2) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .left-headline p {
+            font-size: 15px;
+            color: var(--muted2);
+            line-height: 1.7;
+            max-width: 340px;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 20px;
+        }
+        .stat-chip {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px;
+            padding: 16px 20px;
+            min-width: 110px;
+        }
+        .stat-chip .val {
+            font-family: 'Syne', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .stat-chip .val.green { color: var(--green); }
+        .stat-chip .lbl {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        /* ─── CENTER: LOGIN CARD ─── */
+        .login-col {
+            grid-column: 2;
+            position: relative;
+            padding: 20px 0;
+        }
+
+        /* Vertical glowing line */
+        .vline {
+            position: absolute;
+            left: 0; top: 10%; bottom: 10%;
+            width: 1px;
+            background: linear-gradient(to bottom, transparent, var(--accent) 40%, var(--accent2) 60%, transparent);
+            opacity: 0.25;
+        }
+        .vline.right { left: auto; right: 0; }
+
+        .card-wrap {
+            background: linear-gradient(160deg, rgba(17,19,34,0.95) 0%, rgba(10,11,20,0.97) 100%);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 48px 44px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            opacity: 0;
+            transform: translateY(24px);
+            animation: fadeSlideUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.1s forwards;
+        }
+
+        /* Corner accent glow */
+        .card-wrap::before {
+            content: '';
+            position: absolute;
+            top: -80px; right: -80px;
+            width: 220px; height: 220px;
+            background: radial-gradient(circle, rgba(108,99,255,0.22) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .card-wrap::after {
+            content: '';
+            position: absolute;
+            bottom: -60px; left: -60px;
+            width: 160px; height: 160px;
+            background: radial-gradient(circle, rgba(34,211,160,0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        /* Logo */
+        .logo-block {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 36px;
+        }
+        .logo-icon {
+            width: 52px; height: 52px;
+            background: var(--accent);
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 0 30px var(--glow), 0 0 60px rgba(108,99,255,0.15);
+            flex-shrink: 0;
+            position: relative;
         }
-        .login-wrap {
-            width: 100%;
-            max-width: 420px;
-            padding: 20px;
+        .logo-icon::after {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: 17px;
+            border: 1px solid rgba(167,139,250,0.5);
         }
-        .logo {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-        .logo-icon {
-            width: 60px; height: 60px;
-            background: var(--accent);
-            border-radius: 18px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            margin-bottom: 14px;
-            box-shadow: 0 0 40px var(--accent-glow);
-        }
-        .logo h1 {
-            font-size: 26px;
+        .logo-text h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: 22px;
             font-weight: 800;
             letter-spacing: -0.5px;
+            line-height: 1;
         }
-        .logo p {
-            font-size: 13px;
-            color: var(--muted);
-            margin-top: 4px;
+        .logo-text p {
+            font-size: 11.5px;
+            color: var(--muted2);
+            margin-top: 3px;
+            letter-spacing: 0.04em;
         }
-        .card-login {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 36px;
+
+        /* Divider */
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border) 30%, var(--border) 70%, transparent);
+            margin-bottom: 32px;
         }
-        .card-login h2 {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 24px;
-        }
-        .form-group { margin-bottom: 18px; }
-        label {
-            display: block;
-            font-size: 13px;
+
+        .section-label {
+            font-size: 11px;
             font-weight: 600;
-            color: #8b8fa8;
-            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--muted);
+            margin-bottom: 20px;
         }
-        input {
-            width: 100%;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            color: var(--text);
+
+        /* Error */
+        .error-msg {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.25);
+            color: #f87171;
             border-radius: 12px;
-            padding: 12px 16px;
-            font-size: 14px;
-            font-family: inherit;
-            transition: border-color 0.2s;
+            padding: 11px 14px;
+            font-size: 13px;
+            margin-bottom: 22px;
         }
-        input:focus {
+        .error-msg i { font-size: 15px; flex-shrink: 0; }
+
+        /* Form fields */
+        .field {
+            margin-bottom: 20px;
+        }
+        .field label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted2);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .field label i { font-size: 13px; color: var(--accent); }
+
+        .input-wrap {
+            position: relative;
+        }
+        .input-wrap input {
+            width: 100%;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.07);
+            color: var(--text);
+            border-radius: 14px;
+            padding: 13px 44px 13px 16px;
+            font-size: 14.5px;
+            font-family: 'DM Sans', sans-serif;
+            transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
             outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px var(--accent-glow);
         }
+        .input-wrap input::placeholder { color: var(--muted); }
+        .input-wrap input:focus {
+            border-color: var(--accent);
+            background: rgba(108,99,255,0.06);
+            box-shadow: 0 0 0 4px rgba(108,99,255,0.12);
+        }
+        .input-icon {
+            position: absolute;
+            right: 14px; top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            font-size: 15px;
+            pointer-events: none;
+            transition: color 0.2s;
+        }
+        .input-wrap:focus-within .input-icon { color: var(--accent); }
+
+        /* Submit button */
         .btn-login {
             width: 100%;
             background: var(--accent);
             color: #fff;
             border: none;
-            border-radius: 12px;
-            padding: 13px;
+            border-radius: 14px;
+            padding: 14px;
             font-size: 15px;
             font-weight: 700;
-            font-family: inherit;
+            font-family: 'DM Sans', sans-serif;
             cursor: pointer;
-            margin-top: 8px;
-            transition: all 0.2s;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.15s, box-shadow 0.3s;
+            letter-spacing: 0.01em;
+            box-shadow: 0 4px 24px rgba(108,99,255,0.35);
+        }
+        .btn-login::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+            border-radius: 14px;
         }
         .btn-login:hover {
-            background: #8b85ff;
-            box-shadow: 0 0 30px var(--accent-glow);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 40px rgba(108,99,255,0.5);
         }
-        .error-msg {
-            background: rgba(239,68,68,0.1);
-            border: 1px solid rgba(239,68,68,0.3);
-            color: #ef4444;
-            border-radius: 10px;
-            padding: 10px 14px;
-            font-size: 13px;
-            margin-bottom: 18px;
+        .btn-login:active { transform: translateY(0); }
+
+        .btn-login .btn-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            z-index: 1;
         }
-        .hint {
-            text-align: center;
-            font-size: 12px;
+
+        /* Shimmer sweep on hover */
+        .btn-login::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -75%;
+            width: 50%; height: 200%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transform: skewX(-20deg);
+            transition: left 0.6s;
+        }
+        .btn-login:hover::after { left: 125%; }
+
+        /* Footer hint */
+        .card-footer {
+            margin-top: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .card-footer span {
+            font-size: 11.5px;
             color: var(--muted);
-            margin-top: 20px;
+        }
+        .secure-badge {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(34,211,160,0.08);
+            border: 1px solid rgba(34,211,160,0.2);
+            border-radius: 100px;
+            padding: 4px 10px;
+        }
+        .secure-badge i { font-size: 10px; color: var(--green); }
+        .secure-badge span { font-size: 10.5px; color: var(--green); font-weight: 600; }
+
+        /* ─── RIGHT PANEL ─── */
+        .right-panel {
+            grid-column: 3;
+            padding: 60px 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 20px;
+            opacity: 0;
+            transform: translateX(30px);
+            animation: fadeSlideLeft 0.9s cubic-bezier(0.16,1,0.3,1) 0.3s forwards;
+        }
+
+        .feature-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            transition: border-color 0.3s, background 0.3s;
+        }
+        .feature-card:hover {
+            border-color: var(--border);
+            background: rgba(108,99,255,0.04);
+        }
+        .feat-icon {
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+            flex-shrink: 0;
+        }
+        .feat-icon.purple { background: rgba(108,99,255,0.15); color: var(--accent2); }
+        .feat-icon.green  { background: rgba(34,211,160,0.12); color: var(--green); }
+        .feat-icon.blue   { background: rgba(59,130,246,0.12); color: #60a5fa; }
+        .feat-text h4 {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        .feat-text p {
+            font-size: 12px;
+            color: var(--muted2);
+            line-height: 1.55;
+        }
+
+        /* ─── ANIMATED GRID BACKGROUND ─── */
+        .grid-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image:
+                linear-gradient(rgba(108,99,255,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(108,99,255,0.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 0%, transparent 100%);
+        }
+
+        /* ─── ANIMATIONS ─── */
+        @keyframes fadeSlideUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeSlideRight {
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes fadeSlideLeft {
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%       { opacity: 0.5; transform: scale(0.8); }
+        }
+        @keyframes orbit {
+            from { transform: rotate(0deg) translateX(180px) rotate(0deg); }
+            to   { transform: rotate(360deg) translateX(180px) rotate(-360deg); }
+        }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 1100px) {
+            .scene {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto;
+                overflow-y: auto;
+                align-items: start;
+                padding: 40px 20px;
+            }
+            .left-panel, .right-panel { display: none; }
+            .login-col { grid-column: 1; }
+            html, body { overflow: auto; }
         }
     </style>
 </head>
 <body>
-<div class="login-wrap">
-    <div class="logo">
-        <div class="logo-icon">🏪</div>
-        <h1>POS Pro</h1>
-        <p>Sistema Punto de Venta</p>
-    </div>
 
-    <div class="card-login">
-        <h2>Iniciar Sesión</h2>
+<!-- Animated background canvas -->
+<canvas id="bg-canvas"></canvas>
+<div class="grid-overlay"></div>
 
-        {% if form.errors %}
-        <div class="error-msg">
-            <i class="bi bi-exclamation-circle me-2"></i>
-            Usuario o contraseña incorrectos.
+<div class="scene">
+
+    <!-- LEFT PANEL -->
+    <div class="left-panel">
+        <div class="brand-badge">
+            <div class="dot"></div>
+            <span>Sistema activo</span>
         </div>
-        {% endif %}
 
-        <form method="post">
-            {% csrf_token %}
-            <div class="form-group">
-                <label for="id_username"><i class="bi bi-person me-1"></i>Usuario</label>
-                <input type="text" name="username" id="id_username" placeholder="admin" autocomplete="username">
+        <div class="left-headline">
+            <h2>Controla<br>tu negocio<br>en tiempo real</h2>
+            <p>POS Pro centraliza tus ventas, inventario y reportes en una sola plataforma potente y elegante.</p>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-chip">
+                <span class="val green">99.9%</span>
+                <span class="lbl">Uptime</span>
             </div>
-            <div class="form-group">
-                <label for="id_password"><i class="bi bi-lock me-1"></i>Contraseña</label>
-                <input type="password" name="password" id="id_password" placeholder="••••••••" autocomplete="current-password">
+            <div class="stat-chip">
+                <span class="val">∞</span>
+                <span class="lbl">Ventas</span>
             </div>
-            <button type="submit" class="btn-login">
-                <i class="bi bi-box-arrow-in-right me-2"></i>Entrar al Sistema
-            </button>
-        </form>
+            <div class="stat-chip">
+                <span class="val">24/7</span>
+                <span class="lbl">Soporte</span>
+            </div>
+        </div>
     </div>
 
-    <p class="hint">POS Pro &copy; 2024 — Sistema de contabilidad y ventas</p>
+    <!-- CENTER: LOGIN CARD -->
+    <div class="login-col">
+        <div class="vline"></div>
+        <div class="vline right"></div>
+
+        <div class="card-wrap">
+
+            <div class="logo-block">
+                <div class="logo-icon">🏪</div>
+                <div class="logo-text">
+                    <h1>POS Pro</h1>
+                    <p>Sistema Punto de Venta</p>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <p class="section-label">Acceso al sistema</p>
+
+            {% if form.errors %}
+            <div class="error-msg">
+                <i class="bi bi-shield-exclamation"></i>
+                Credenciales incorrectas. Inténtalo de nuevo.
+            </div>
+            {% endif %}
+
+            <form method="post" id="login-form">
+                {% csrf_token %}
+
+                <div class="field">
+                    <label for="id_username">
+                        <i class="bi bi-person-fill"></i>
+                        Usuario
+                    </label>
+                    <div class="input-wrap">
+                        <input type="text" name="username" id="id_username"
+                               placeholder="Ingresa tu usuario"
+                               autocomplete="username" spellcheck="false">
+                        <i class="bi bi-at input-icon"></i>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="id_password">
+                        <i class="bi bi-lock-fill"></i>
+                        Contraseña
+                    </label>
+                    <div class="input-wrap">
+                        <input type="password" name="password" id="id_password"
+                               placeholder="••••••••••"
+                               autocomplete="current-password">
+                        <i class="bi bi-eye input-icon" id="eye-toggle" style="pointer-events:all;cursor:pointer;"></i>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-login" id="submit-btn">
+                    <div class="btn-inner">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        <span>Entrar al Sistema</span>
+                    </div>
+                </button>
+            </form>
+
+            <div class="card-footer">
+                <span>Conexión segura</span>
+                <div class="secure-badge">
+                    <i class="bi bi-shield-check-fill"></i>
+                    <span>SSL Activo</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+        <div class="feature-card">
+            <div class="feat-icon purple"><i class="bi bi-graph-up-arrow"></i></div>
+            <div class="feat-text">
+                <h4>Reportes en tiempo real</h4>
+                <p>Visualiza ventas, ganancias y métricas clave del día al instante.</p>
+            </div>
+        </div>
+        <div class="feature-card">
+            <div class="feat-icon green"><i class="bi bi-box-seam"></i></div>
+            <div class="feat-text">
+                <h4>Control de inventario</h4>
+                <p>Monitorea stock, alertas de mínimos y movimientos automáticos.</p>
+            </div>
+        </div>
+        <div class="feature-card">
+            <div class="feat-icon blue"><i class="bi bi-receipt-cutoff"></i></div>
+            <div class="feat-text">
+                <h4>Facturación instantánea</h4>
+                <p>Genera recibos y exporta reportes PDF con un solo clic.</p>
+            </div>
+        </div>
+    </div>
+
 </div>
+
+<script>
+// ─── CANVAS PARTICLE BACKGROUND ───────────────────────────────
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let W, H, particles = [];
+
+function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', () => { resize(); initParticles(); });
+
+function initParticles() {
+    particles = [];
+    const count = Math.floor((W * H) / 18000);
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x:  Math.random() * W,
+            y:  Math.random() * H,
+            r:  Math.random() * 1.5 + 0.3,
+            dx: (Math.random() - 0.5) * 0.25,
+            dy: (Math.random() - 0.5) * 0.25,
+            o:  Math.random() * 0.5 + 0.1,
+        });
+    }
+}
+initParticles();
+
+// Central glow orbs
+const orbs = [
+    { x: 0.18, y: 0.35, r: 320, c: 'rgba(108,99,255,0.12)' },
+    { x: 0.82, y: 0.65, r: 260, c: 'rgba(34,211,160,0.07)' },
+    { x: 0.5,  y: 0.9,  r: 200, c: 'rgba(108,99,255,0.06)' },
+];
+
+function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Orbs
+    orbs.forEach(o => {
+        const g = ctx.createRadialGradient(o.x*W, o.y*H, 0, o.x*W, o.y*H, o.r);
+        g.addColorStop(0, o.c);
+        g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(o.x*W, o.y*H, o.r, 0, Math.PI*2);
+        ctx.fill();
+    });
+
+    // Particles
+    particles.forEach(p => {
+        p.x += p.dx; p.y += p.dy;
+        if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+        if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(167,139,250,${p.o})`;
+        ctx.fill();
+    });
+
+    // Connect nearby particles
+    for (let i = 0; i < particles.length; i++) {
+        for (let j = i+1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const d = Math.sqrt(dx*dx + dy*dy);
+            if (d < 90) {
+                ctx.beginPath();
+                ctx.moveTo(particles[i].x, particles[i].y);
+                ctx.lineTo(particles[j].x, particles[j].y);
+                ctx.strokeStyle = `rgba(108,99,255,${0.08 * (1 - d/90)})`;
+                ctx.lineWidth = 0.6;
+                ctx.stroke();
+            }
+        }
+    }
+
+    requestAnimationFrame(draw);
+}
+draw();
+
+// ─── TOGGLE PASSWORD VISIBILITY ──────────────────────────────
+const eyeBtn = document.getElementById('eye-toggle');
+const pwdInput = document.getElementById('id_password');
+eyeBtn.addEventListener('click', () => {
+    const visible = pwdInput.type === 'text';
+    pwdInput.type = visible ? 'password' : 'text';
+    eyeBtn.className = visible ? 'bi bi-eye input-icon' : 'bi bi-eye-slash input-icon';
+    eyeBtn.style.cssText = 'pointer-events:all;cursor:pointer;right:14px;top:50%;transform:translateY(-50%);position:absolute;font-size:15px;transition:color 0.2s;';
+});
+
+// ─── SUBMIT LOADING STATE ────────────────────────────────────
+document.getElementById('login-form').addEventListener('submit', function() {
+    const btn = document.getElementById('submit-btn');
+    btn.innerHTML = `<div class="btn-inner"><i class="bi bi-arrow-repeat" style="animation:spin 0.8s linear infinite;display:inline-block"></i><span>Verificando...</span></div>`;
+    btn.disabled = true;
+    btn.style.opacity = '0.8';
+});
+
+// Spin keyframe injection
+const style = document.createElement('style');
+style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+document.head.appendChild(style);
+
+// ─── FOCUS FLOW: Enter key between fields ───────────────────
+document.getElementById('id_username').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('id_password').focus(); }
+});
+</script>
 </body>
 </html>

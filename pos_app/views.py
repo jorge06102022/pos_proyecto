@@ -911,20 +911,27 @@ from django.http import HttpResponse
 def crear_admin(request):
     User = get_user_model()
 
-    # 🔒 clave de seguridad (cámbiala después)
     key = request.GET.get("key")
 
     if key != "crear123":
         return HttpResponse("No autorizado", status=403)
 
-    # evitar duplicados
-    if User.objects.filter(username="admin").exists():
-        return HttpResponse("El usuario admin ya existe")
+    try:
+        user, created = User.objects.get_or_create(
+            username="wiliam",
+            defaults={
+                "email": "jordav8a@gmail.com",
+            }
+        )
 
-    User.objects.create_superuser(
-        username="wiliam",
-        email="jordav8a@gmail.com",
-        password="12345678"
-    )
+        if created:
+            user.set_password("12345678")
+            user.is_superuser = True
+            user.is_staff = True
+            user.save()
+            return HttpResponse("✅ Superusuario creado correctamente")
 
-    return HttpResponse("✅ Superusuario creado correctamente")
+        return HttpResponse("⚠️ El usuario ya existe")
+
+    except Exception as e:
+        return HttpResponse(f"❌ Error: {str(e)}", status=500)

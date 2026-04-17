@@ -422,9 +422,14 @@
                 <div class="user-name">{{ request.user.username }}</div>
                 <div class="user-role">Administrador</div>
             </div>
-            <a href="{% url 'logout' %}" class="ms-auto text-muted" title="Cerrar sesión">
-                <i class="bi bi-box-arrow-right"></i>
-            </a>
+            <form action="{% url 'logout' %}" method="post" class="ms-auto" style="margin:0;">
+    {% csrf_token %}
+    <button type="submit"
+        style="background:none;border:none;color:var(--text-muted);"
+        title="Cerrar sesión">
+        <i class="bi bi-box-arrow-right"></i>
+    </button>
+</form>
         </div>
     </div>
 </aside>

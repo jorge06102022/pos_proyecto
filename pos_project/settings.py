@@ -3,6 +3,7 @@ settings.py - Configuración principal de POS System
 """
 from pathlib import Path
 import os
+import dj_database_url
 
 # ─────────────────────────────────────────────
 # BASE
@@ -36,7 +37,7 @@ INSTALLED_APPS = [
 # ─────────────────────────────────────────────
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # 👈 IMPORTANTE PARA RENDER
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # IMPORTANTE PARA RENDER
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -69,14 +70,13 @@ TEMPLATES = [
 WSGI_APPLICATION = 'pos_project.wsgi.application'
 
 # ─────────────────────────────────────────────
-# BASE DE DATOS (LISTO PARA RENDER)
+# BASE DE DATOS (POSTGRESQL EN RENDER)
 # ─────────────────────────────────────────────
-# ⚠️ SQLite para que funcione sin problemas en Render
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.parse(
+        os.environ.get("DATABASE_URL"),
+        conn_max_age=600
+    )
 }
 
 # ─────────────────────────────────────────────
@@ -101,10 +101,8 @@ USE_TZ = True
 # STATIC FILES
 # ─────────────────────────────────────────────
 STATIC_URL = '/static/'
-
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# WhiteNoise (para servir estáticos en producción)
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # ─────────────────────────────────────────────

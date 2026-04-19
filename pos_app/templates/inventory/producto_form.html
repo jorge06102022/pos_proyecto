@@ -25,10 +25,7 @@
                             {% if form.sku.errors %}<div style="color:var(--danger);font-size:12px;margin-top:4px">{{ form.sku.errors.0 }}</div>{% endif %}
                         </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label">{{ form.categoria.label }}</label>
-                            {{ form.categoria }}
-                        </div>
+                        
                         <div class="col-md-4">
                             <label class="form-label">{{ form.precio_compra.label }}</label>
                             {{ form.precio_compra }}

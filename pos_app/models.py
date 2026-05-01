@@ -154,3 +154,59 @@ class DetalleVenta(models.Model):
         """Calcula el subtotal automáticamente antes de guardar."""
         self.subtotal = self.precio_venta * self.cantidad
         super().save(*args, **kwargs)
+
+class Egreso(models.Model):
+    """Modelo para registrar gastos del negocio."""
+
+    METODO_PAGO_CHOICES = [
+        ('efectivo', 'Efectivo'),
+        ('transferencia', 'Transferencia'),
+        ('tarjeta', 'Tarjeta'),
+        ('otro', 'Otro'),
+    ]
+
+    nombre = models.CharField(
+        max_length=150,
+        verbose_name="Nombre del Gasto",
+        help_text="Ej: Compra de pollo, pago de luz, arriendo"
+    )
+
+    descripcion = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Descripción",
+        help_text="Detalles adicionales del gasto"
+    )
+
+    monto = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Monto Gastado"
+    )
+
+    metodo_pago = models.CharField(
+        max_length=20,
+        choices=METODO_PAGO_CHOICES,
+        default='efectivo',
+        verbose_name="Método de Pago"
+    )
+
+    fecha = models.DateTimeField(
+        default=timezone.now,
+        verbose_name="Fecha del Gasto"
+    )
+
+    comprobante = models.FileField(
+        upload_to='egresos/comprobantes/',
+        blank=True,
+        null=True,
+        verbose_name="Comprobante (opcional)"
+    )
+
+    class Meta:
+        verbose_name = "Egreso"
+        verbose_name_plural = "Egresos"
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"{self.nombre} - ${self.monto}"

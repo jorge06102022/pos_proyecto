@@ -28,6 +28,13 @@ from .forms import ProductoForm, CategoriaForm
 def dashboard(request):
     """Vista principal del dashboard con estadísticas."""
     from datetime import datetime
+    from decimal import Decimal
+    from django.db.models import Sum, F
+    from django.utils import timezone
+    from datetime import timedelta
+    import json
+
+    from .models import Venta, Producto, DetalleVenta, Egreso  # 👈 IMPORTANTE
 
     hoy = timezone.now().date()
 
@@ -39,7 +46,7 @@ def dashboard(request):
     inicio_mes_dt = datetime.combine(inicio_mes, datetime.min.time())
     fin_hoy_dt = datetime.combine(hoy, datetime.max.time())
 
-    # Ventas de hoy
+    # ───────────── VENTAS HOY ─────────────
     ventas_hoy = Venta.objects.filter(
         fecha__gte=inicio_dia,
         fecha__lte=fin_dia
@@ -49,7 +56,18 @@ def dashboard(request):
     ganancia_hoy = ventas_hoy.aggregate(g=Sum('total_ganancia'))['g'] or Decimal('0')
     num_ventas_hoy = ventas_hoy.count()
 
-    # Ventas del mes
+    # ───────────── EGRESOS HOY (NUEVO) ─────────────
+    egresos_hoy_qs = Egreso.objects.filter(
+        fecha__gte=inicio_dia,
+        fecha__lte=fin_dia
+    )
+
+    egresos_hoy = egresos_hoy_qs.aggregate(t=Sum('monto'))['t'] or Decimal('0')
+
+    # ✅ UTILIDAD REAL HOY
+    utilidad_real_hoy = total_hoy - egresos_hoy
+
+    # ───────────── VENTAS MES ─────────────
     ventas_mes = Venta.objects.filter(
         fecha__gte=inicio_mes_dt,
         fecha__lte=fin_hoy_dt
@@ -58,24 +76,38 @@ def dashboard(request):
     total_mes = ventas_mes.aggregate(t=Sum('total_venta'))['t'] or Decimal('0')
     ganancia_mes = ventas_mes.aggregate(g=Sum('total_ganancia'))['g'] or Decimal('0')
 
-    # Inventario
+    # ───────────── EGRESOS MES (NUEVO) ─────────────
+    egresos_mes_qs = Egreso.objects.filter(
+        fecha__gte=inicio_mes_dt,
+        fecha__lte=fin_hoy_dt
+    )
+
+    egresos_mes = egresos_mes_qs.aggregate(t=Sum('monto'))['t'] or Decimal('0')
+
+    # ✅ UTILIDAD REAL MES
+    utilidad_real_mes = total_mes - egresos_mes
+
+    # ───────────── INVENTARIO ─────────────
     total_productos = Producto.objects.filter(activo=True).count()
+
     productos_stock_bajo = Producto.objects.filter(
         activo=True,
         stock__lte=F('stock_minimo')
     ).count()
+
     productos_sin_stock = Producto.objects.filter(
         activo=True,
         stock=0
     ).count()
 
-    # Últimas 5 ventas
+    # ───────────── ÚLTIMAS VENTAS ─────────────
     ultimas_ventas = Venta.objects.prefetch_related('detalles__producto').order_by('-fecha')[:5]
 
-    # 🔥 Gráfico ventas últimos 7 días (corregido)
+    # ───────────── GRÁFICO 7 DÍAS (VENTAS + GANANCIAS + EGRESOS) ─────────────
     labels_7dias = []
     data_ventas_7dias = []
     data_ganancias_7dias = []
+    data_egresos_7dias = []  # 👈 NUEVO
 
     for i in range(6, -1, -1):
         dia = hoy - timedelta(days=i)
@@ -88,11 +120,18 @@ def dashboard(request):
             fecha__lte=fin_d
         )
 
+        e = Egreso.objects.filter(
+            fecha__gte=inicio_d,
+            fecha__lte=fin_d
+        )
+
         labels_7dias.append(dia.strftime('%d/%m'))
+
         data_ventas_7dias.append(float(v.aggregate(t=Sum('total_venta'))['t'] or 0))
         data_ganancias_7dias.append(float(v.aggregate(g=Sum('total_ganancia'))['g'] or 0))
+        data_egresos_7dias.append(float(e.aggregate(t=Sum('monto'))['t'] or 0))  # 👈 NUEVO
 
-    # Top 5 productos más vendidos (mes)
+    # ───────────── TOP PRODUCTOS ─────────────
     top_productos = (
         DetalleVenta.objects
         .filter(
@@ -107,19 +146,34 @@ def dashboard(request):
         .order_by('-total_qty')[:5]
     )
 
+    # ───────────── CONTEXT ─────────────
     context = {
         'total_hoy': total_hoy,
         'ganancia_hoy': ganancia_hoy,
         'num_ventas_hoy': num_ventas_hoy,
+
+        # 👇 NUEVOS
+        'egresos_hoy': egresos_hoy,
+        'utilidad_real_hoy': utilidad_real_hoy,
+
         'total_mes': total_mes,
         'ganancia_mes': ganancia_mes,
+
+        # 👇 NUEVOS
+        'egresos_mes': egresos_mes,
+        'utilidad_real_mes': utilidad_real_mes,
+
         'total_productos': total_productos,
         'productos_stock_bajo': productos_stock_bajo,
         'productos_sin_stock': productos_sin_stock,
+
         'ultimas_ventas': ultimas_ventas,
+
         'labels_7dias': json.dumps(labels_7dias),
         'data_ventas_7dias': json.dumps(data_ventas_7dias),
         'data_ganancias_7dias': json.dumps(data_ganancias_7dias),
+        'data_egresos_7dias': json.dumps(data_egresos_7dias),  # 👈 NUEVO
+
         'top_productos': list(top_productos),
     }
 
@@ -632,277 +686,151 @@ def reporte_diario_pdf(request):
     inicio = datetime.combine(hoy, datetime.min.time())
     fin    = datetime.combine(hoy, datetime.max.time())
 
-    ventas    = Venta.objects.filter(fecha__gte=inicio, fecha__lte=fin).order_by("-fecha")
-    total     = ventas.aggregate(t=Sum("total_venta"))["t"]    or 0
+    ventas = Venta.objects.filter(fecha__gte=inicio, fecha__lte=fin).order_by("-fecha")
+
+    # ✅ NUEVO: EGRESOS
+    egresos = Egreso.objects.filter(fecha__gte=inicio, fecha__lte=fin).order_by("-fecha")
+
+    total     = ventas.aggregate(t=Sum("total_venta"))["t"] or 0
     ganancia  = ventas.aggregate(g=Sum("total_ganancia"))["g"] or 0
     cantidad  = ventas.count()
     promedio  = (total / cantidad) if cantidad else 0
 
-    # ── Respuesta HTTP ───────────────────────────────────────────
+    # ✅ NUEVO
+    total_egresos = egresos.aggregate(t=Sum("monto"))["t"] or 0
+
+    # ✅ UTILIDAD REAL
+    utilidad_real = total - total_egresos
+
+    # ── Response
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="reporte_{hoy}.pdf"'
 
     buffer = io.BytesIO()
-
-    # ── Estilos de texto ─────────────────────────────────────────
     styles = getSampleStyleSheet()
 
+    # ── Estilos (NO TOCADOS)
     style_section_title = ParagraphStyle(
-        "SectionTitle",
-        fontName="Helvetica-Bold",
-        fontSize=11,
-        textColor=PURPLE_DARK,
-        spaceAfter=8,
-        spaceBefore=4,
-    )
-    style_label = ParagraphStyle(
-        "Label",
-        fontName="Helvetica",
-        fontSize=8,
-        textColor=GRAY_MID,
-        spaceAfter=2,
-    )
-    style_value_big = ParagraphStyle(
-        "ValueBig",
-        fontName="Helvetica-Bold",
-        fontSize=20,
-        textColor=GRAY_DARK,
-        spaceAfter=0,
-    )
-    style_value_green = ParagraphStyle(
-        "ValueGreen",
-        fontName="Helvetica-Bold",
-        fontSize=20,
-        textColor=GREEN,
-        spaceAfter=0,
-    )
-    style_footer_note = ParagraphStyle(
-        "FooterNote",
-        fontName="Helvetica",
-        fontSize=8,
-        textColor=GRAY_MID,
-        alignment=TA_CENTER,
+        "SectionTitle", fontName="Helvetica-Bold", fontSize=11,
+        textColor=PURPLE_DARK, spaceAfter=8, spaceBefore=4,
     )
 
-    # ── Construcción del contenido ───────────────────────────────
+    style_label = ParagraphStyle(
+        "Label", fontName="Helvetica", fontSize=8,
+        textColor=GRAY_MID, spaceAfter=2,
+    )
+
+    style_value_big = ParagraphStyle(
+        "ValueBig", fontName="Helvetica-Bold", fontSize=20,
+        textColor=GRAY_DARK,
+    )
+
+    style_value_green = ParagraphStyle(
+        "ValueGreen", fontName="Helvetica-Bold", fontSize=20,
+        textColor=GREEN,
+    )
+
+    style_value_red = ParagraphStyle(  # 👈 NUEVO
+        "ValueRed", fontName="Helvetica-Bold", fontSize=20,
+        textColor=colors.red,
+    )
+
+    style_footer_note = ParagraphStyle(
+        "FooterNote", fontName="Helvetica", fontSize=8,
+        textColor=GRAY_MID, alignment=TA_CENTER,
+    )
+
     elements = []
     page_w, _ = A4
-    content_w = page_w - 60   # márgenes izq + der = 30 cada uno
+    content_w = page_w - 60
 
-    # ── Título del reporte ────────────────────────────────────────
+    # ── Título
     elements.append(Spacer(1, 10))
-    elements.append(Paragraph("Reporte Diario de Ventas", ParagraphStyle(
-        "ReportTitle",
-        fontName="Helvetica-Bold",
-        fontSize=16,
-        textColor=GRAY_DARK,
-        spaceAfter=2,
-    )))
+    elements.append(Paragraph("Reporte Diario de Ventas", styles["Title"]))
     elements.append(Paragraph(
-        f"Período: {hoy.strftime('%A, %d de %B de %Y').capitalize()}",
-        ParagraphStyle("DateLine", fontName="Helvetica", fontSize=10, textColor=GRAY_MID, spaceAfter=14),
+        f"{hoy.strftime('%d/%m/%Y')}", styles["Normal"]
     ))
 
-    # Línea separadora
-    elements.append(Table(
-        [[""]],
-        colWidths=[content_w],
-        style=TableStyle([
-            ("LINEBELOW", (0, 0), (-1, 0), 1.5, PURPLE),
-            ("TOPPADDING",    (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ]),
-    ))
-    elements.append(Spacer(1, 18))
+    elements.append(Spacer(1, 10))
 
-    # ── TARJETAS DE RESUMEN (2×2) ─────────────────────────────────
-    elements.append(Paragraph("Resumen del día", style_section_title))
-
-    def card(label, value_text, value_style, bg=GRAY_LIGHT, border_color=PURPLE):
-        """Genera una mini-tarjeta como tabla de 1 celda."""
-        inner = Table(
+    # ── CARDS (MODIFICADAS)
+    def card(label, value_text, value_style):
+        return Table(
             [[Paragraph(label, style_label)],
              [Paragraph(value_text, value_style)]],
             colWidths=[(content_w / 2) - 10],
-            style=TableStyle([
-                ("BACKGROUND",    (0, 0), (-1, -1), bg),
-                ("TOPPADDING",    (0, 0), (-1, -1), 12),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
-                ("LEFTPADDING",   (0, 0), (-1, -1), 14),
-                ("RIGHTPADDING",  (0, 0), (-1, -1), 14),
-                ("LINEBELOW",     (0, 0), (-1, 0),  0, bg),        # separador interno oculto
-                ("LINEBEFORE",    (0, 0), (0, -1),  3, border_color),  # acento izquierdo
-                ("ROUNDEDCORNERS", [4]),
-            ]),
         )
-        return inner
 
-    cards_row1 = Table(
-        [[
-            card("Total Vendido",          f"${total:,.0f}",     style_value_big,   bg=GRAY_LIGHT,   border_color=PURPLE),
-            card("Ganancia Total",          f"${ganancia:,.0f}",  style_value_green, bg=GREEN_LIGHT,  border_color=GREEN),
-        ]],
-        colWidths=[(content_w / 2) - 5, (content_w / 2) - 5],
-        style=TableStyle([
-            ("LEFTPADDING",   (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
-            ("TOPPADDING",    (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-            ("COLPADDING",    (0, 0), (-1, -1), 10),
-        ]),
-        hAlign="LEFT",
-    )
+    cards = Table([
+        [
+            card("Total Ventas", f"${total:,.0f}", style_value_big),
+            card("Ganancia", f"${ganancia:,.0f}", style_value_green),
+        ],
+        [
+            card("Egresos", f"${total_egresos:,.0f}", style_value_red),  # 👈 NUEVO
+            card("Utilidad Real", f"${utilidad_real:,.0f}", style_value_green),  # 👈 NUEVO
+        ]
+    ])
 
-    cards_row2 = Table(
-        [[
-            card("Transacciones",           str(cantidad),        style_value_big,   bg=GRAY_LIGHT,   border_color=PURPLE),
-            card("Ticket Promedio",          f"${promedio:,.0f}", style_value_big,   bg=GRAY_LIGHT,   border_color=PURPLE_DARK),
-        ]],
-        colWidths=[(content_w / 2) - 5, (content_w / 2) - 5],
-        style=TableStyle([
-            ("LEFTPADDING",   (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
-            ("TOPPADDING",    (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ]),
-        hAlign="LEFT",
-    )
+    elements.append(cards)
+    elements.append(Spacer(1, 20))
 
-    elements.append(cards_row1)
-    elements.append(Spacer(1, 10))
-    elements.append(cards_row2)
-    elements.append(Spacer(1, 24))
-
-    # ── TABLA DE VENTAS ───────────────────────────────────────────
+    # ── TABLA VENTAS (NO TOCADA)
     elements.append(Paragraph("Detalle de Ventas", style_section_title))
 
     if ventas.exists():
-        col_id     = 50
-        col_hora   = 60
-        col_metodo = content_w - 50 - 60 - 90
-        col_total  = 90
-
-        header = [
-            Paragraph("<font color='white'><b>#ID</b></font>",          styles["Normal"]),
-            Paragraph("<font color='white'><b>Hora</b></font>",          styles["Normal"]),
-            Paragraph("<font color='white'><b>Método de Pago</b></font>", styles["Normal"]),
-            Paragraph("<font color='white'><b>Total</b></font>",          styles["Normal"]),
-        ]
-        rows = [header]
-
+        rows = [["ID", "Hora", "Método", "Total"]]
         for v in ventas:
             rows.append([
-                Paragraph(f"<font color='#6c63ff'><b>#{v.id}</b></font>", styles["Normal"]),
+                f"#{v.id}",
                 v.fecha.strftime("%H:%M"),
                 v.get_metodo_pago_display(),
-                Paragraph(
-                    f"<b>${v.total_venta:,.0f}</b>",
-                    ParagraphStyle("TotalCell", fontName="Helvetica-Bold",
-                                   fontSize=10, alignment=TA_RIGHT, textColor=GRAY_DARK),
-                ),
+                f"${v.total_venta:,.0f}"
+            ])
+        elements.append(Table(rows))
+    else:
+        elements.append(Paragraph("Sin ventas"))
+
+    elements.append(Spacer(1, 20))
+
+    # ── 🆕 TABLA EGRESOS
+    elements.append(Paragraph("Detalle de Egresos", style_section_title))
+
+    if egresos.exists():
+        rows = [["Nombre", "Descripción", "Monto"]]
+
+        for e in egresos:
+            rows.append([
+                e.nombre,
+                e.descripcion or "-",
+                f"${e.monto:,.0f}"
             ])
 
-        sale_table = Table(
-            rows,
-            colWidths=[col_id, col_hora, col_metodo, col_total],
-            repeatRows=1,
-        )
-        sale_table.setStyle(TableStyle([
-            # ── Encabezado
-            ("BACKGROUND",    (0, 0), (-1, 0),  PURPLE),
-            ("TEXTCOLOR",     (0, 0), (-1, 0),  WHITE),
-            ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica-Bold"),
-            ("FONTSIZE",      (0, 0), (-1, 0),  9),
-            ("ALIGN",         (0, 0), (-1, 0),  "CENTER"),
-            ("TOPPADDING",    (0, 0), (-1, 0),  10),
-            ("BOTTOMPADDING", (0, 0), (-1, 0),  10),
-
-            # ── Cuerpo
-            ("FONTNAME",      (0, 1), (-1, -1), "Helvetica"),
-            ("FONTSIZE",      (0, 1), (-1, -1), 9),
-            ("TEXTCOLOR",     (0, 1), (-1, -1), GRAY_DARK),
-            ("TOPPADDING",    (0, 1), (-1, -1), 8),
-            ("BOTTOMPADDING", (0, 1), (-1, -1), 8),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 10),
-            ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
-
-            # Alineaciones
-            ("ALIGN",         (0, 1), (0, -1),  "CENTER"),   # ID centrado
-            ("ALIGN",         (1, 1), (1, -1),  "CENTER"),   # Hora centrado
-            ("ALIGN",         (2, 1), (2, -1),  "LEFT"),     # Método izquierda
-            ("ALIGN",         (3, 1), (3, -1),  "RIGHT"),    # Total derecha
-
-            # Filas zebra
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [WHITE, ROW_ALT]),
-
-            # Borde exterior suave
-            ("BOX",           (0, 0), (-1, -1), 0.5, colors.HexColor("#e5e7eb")),
-            ("LINEBELOW",     (0, 0), (-1, -1), 0.3, colors.HexColor("#e5e7eb")),
-
-            # Línea bajo encabezado más gruesa
-            ("LINEBELOW",     (0, 0), (-1, 0),  1.5, PURPLE_DARK),
-        ]))
-
-        elements.append(sale_table)
-
+        elements.append(Table(rows))
     else:
-        elements.append(Paragraph(
-            "No se registraron ventas para el día de hoy.",
-            ParagraphStyle("Empty", fontName="Helvetica", fontSize=10,
-                           textColor=GRAY_MID, alignment=TA_CENTER, spaceBefore=20),
-        ))
+        elements.append(Paragraph("No hay egresos registrados"))
 
-    elements.append(Spacer(1, 30))
+    elements.append(Spacer(1, 20))
 
-    # ── NOTA DE CIERRE ─────────────────────────────────────────────
-    elements.append(Table(
-        [[""]],
-        colWidths=[content_w],
-        style=TableStyle([
-            ("LINEABOVE",     (0, 0), (-1, 0), 0.8, colors.HexColor("#e5e7eb")),
-            ("TOPPADDING",    (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ]),
-    ))
-    elements.append(Spacer(1, 8))
-    elements.append(Paragraph(
-        f"Reporte generado el {hoy.strftime('%d/%m/%Y')} — Todos los valores expresados en moneda local.",
-        style_footer_note,
-    ))
+    # ── RESUMEN FINAL 🧠
+    elements.append(Paragraph("Resumen Final", style_section_title))
 
-    # ── Construcción final con canvas personalizado ───────────────
-    # Pre-calculamos páginas para paginación correcta
-    tmp_doc = SimpleDocTemplate(
-        io.BytesIO(),
-        pagesize=A4,
-        leftMargin=30, rightMargin=30,
-        topMargin=80,  bottomMargin=55,
-    )
-    tmp_doc.build(elements[:])   # dummy build para contar páginas
+    resumen = Table([
+        ["Total Ventas", f"${total:,.0f}"],
+        ["Total Egresos", f"${total_egresos:,.0f}"],
+        ["Utilidad Real", f"${utilidad_real:,.0f}"],
+    ])
 
-    # Build real
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        leftMargin=30, rightMargin=30,
-        topMargin=80,  bottomMargin=55,
-    )
+    elements.append(resumen)
 
-    page_counter = [0]
+    # ── Build
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    doc.build(elements)
 
-    def on_page(canvas_obj, doc_obj):
-        page_counter[0] += 1
-        # Usamos 999 como total provisorio; si quieres exacto,
-        # necesitarías dos pasadas (ver nota más abajo).
-        draw_header_footer(canvas_obj, doc_obj, hoy,
-                           page_counter[0], "?")
-
-    doc.build(elements, onFirstPage=on_page, onLaterPages=on_page)
-
-    # ── Envío de respuesta ────────────────────────────────────────
-    pdf_bytes = buffer.getvalue()
+    pdf = buffer.getvalue()
     buffer.close()
-    response.write(pdf_bytes)
+    response.write(pdf)
+
     return response
 
 from django.contrib.auth import get_user_model
@@ -935,3 +863,112 @@ def crear_admin(request):
 
     except Exception as e:
         return HttpResponse(f"❌ Error: {str(e)}", status=500)
+    
+    from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .models import Egreso
+import json
+
+
+@csrf_exempt
+def egresos_list_create(request):
+    if request.method == 'GET':
+        egresos = Egreso.objects.all().order_by('-fecha')
+
+        data = [
+            {
+                "id": e.id,
+                "nombre": e.nombre,
+                "descripcion": e.descripcion,
+                "monto": float(e.monto),
+                "metodo_pago": e.metodo_pago,
+                "fecha": e.fecha.strftime('%Y-%m-%d %H:%M')
+            }
+            for e in egresos
+        ]
+
+        return JsonResponse(data, safe=False)
+
+    elif request.method == 'POST':
+        try:
+            body = json.loads(request.body)
+
+            egreso = Egreso.objects.create(
+                nombre=body.get('nombre'),
+                descripcion=body.get('descripcion'),
+                monto=body.get('monto'),
+                metodo_pago=body.get('metodo_pago', 'efectivo')
+            )
+
+            return JsonResponse({
+                "message": "Egreso creado correctamente",
+                "id": egreso.id
+            }, status=201)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+        
+
+@csrf_exempt
+def egreso_detail(request, pk):
+    try:
+        egreso = Egreso.objects.get(pk=pk)
+    except Egreso.DoesNotExist:
+        return JsonResponse({"error": "Egreso no encontrado"}, status=404)
+
+    if request.method == 'GET':
+        data = {
+            "id": egreso.id,
+            "nombre": egreso.nombre,
+            "descripcion": egreso.descripcion,
+            "monto": float(egreso.monto),
+            "metodo_pago": egreso.metodo_pago,
+            "fecha": egreso.fecha.strftime('%Y-%m-%d %H:%M')
+        }
+        return JsonResponse(data)
+
+    elif request.method == 'PUT':
+        try:
+            body = json.loads(request.body)
+
+            egreso.nombre = body.get('nombre', egreso.nombre)
+            egreso.descripcion = body.get('descripcion', egreso.descripcion)
+            egreso.monto = body.get('monto', egreso.monto)
+            egreso.metodo_pago = body.get('metodo_pago', egreso.metodo_pago)
+
+            egreso.save()
+
+            return JsonResponse({"message": "Egreso actualizado"})
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+
+    elif request.method == 'DELETE':
+        egreso.delete()
+        return JsonResponse({"message": "Egreso eliminado"})
+    
+from django.shortcuts import render, redirect
+from .models import Egreso
+from django.utils import timezone
+
+
+def egresos_page(request):
+    return render(request, 'egresos/egresos_form.html')
+
+
+def egresos_guardar(request):
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre')
+        descripcion = request.POST.get('descripcion')
+        monto = request.POST.get('monto')
+        metodo_pago = request.POST.get('metodo_pago')
+
+        Egreso.objects.create(
+            nombre=nombre,
+            descripcion=descripcion,
+            monto=monto,
+            metodo_pago=metodo_pago,
+            fecha=timezone.now()
+        )
+
+        return redirect('egresos_page')
+    

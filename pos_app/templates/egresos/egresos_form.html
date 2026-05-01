@@ -1,0 +1,54 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Registrar Egreso{% endblock %}
+{% block page_title %}Registrar Egreso{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card-pos">
+            <div class="card-pos-header">
+                <span><i class="bi bi-cash-coin me-2"></i>Nuevo Egreso</span>
+            </div>
+
+            <div class="card-pos-body">
+                <form method="POST" action="{% url 'egresos_guardar' %}">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label class="form-label">Nombre del gasto</label>
+                        <input type="text" name="nombre" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Descripción</label>
+                        <textarea name="descripcion" class="form-control" rows="3"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Monto</label>
+                        <input type="number" name="monto" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Método de pago</label>
+                        <select name="metodo_pago" class="form-control">
+                            <option value="efectivo">Efectivo</option>
+                            <option value="transferencia">Transferencia</option>
+                            <option value="tarjeta">Tarjeta</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="/" class="btn-outline-pos">Cancelar</a>
+                        <button type="submit" class="btn-accent">
+                            <i class="bi bi-save me-1"></i> Guardar Egreso
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

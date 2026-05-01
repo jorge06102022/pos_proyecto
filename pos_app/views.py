@@ -972,3 +972,12 @@ def egresos_guardar(request):
 
         return redirect('egresos_page')
     
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect
+from .models import Egreso
+
+@login_required
+def eliminar_egresos(request):
+    Egreso.objects.all().delete()
+    return redirect('dashboard')

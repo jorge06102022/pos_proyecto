@@ -12,6 +12,11 @@
     <a href="{% url 'egresos_page' %}" class="btn-accent ms-2">
         <i class="bi bi-cash-coin me-1"></i> Registrar egreso
     </a>
+    <a href="{% url 'eliminar_egresos' %}" 
+   class="btn btn-danger ms-2"
+   onclick="return confirm('¿Seguro que quieres borrar TODOS los egresos?')">
+   🗑 Borrar egresos
+</a>
 
 </div>
 

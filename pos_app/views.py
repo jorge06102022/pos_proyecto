@@ -875,53 +875,35 @@ from django.shortcuts import render
 import json
 from .models import Egreso
 
-@csrf_exempt
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from .models import Egreso
+
+@login_required
 def egresos_list_create(request):
 
-    # 🔥 GET → LISTA
-    if request.method == 'GET':
-        egresos = Egreso.objects.all().order_by('-fecha')
+    # ───────────── CREAR EGRESO (HTML FORM) ─────────────
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre')
+        descripcion = request.POST.get('descripcion')
+        monto = request.POST.get('monto')
+        metodo_pago = request.POST.get('metodo_pago', 'efectivo')
 
-        # 👉 Si viene desde navegador → HTML
-        if 'text/html' in request.headers.get('Accept', ''):
-            return render(request, 'egresos/lista.html', {
-                'egresos': egresos
-            })
+        Egreso.objects.create(
+            nombre=nombre,
+            descripcion=descripcion,
+            monto=monto,
+            metodo_pago=metodo_pago
+        )
 
-        # 👉 Si viene desde fetch / API → JSON
-        data = [
-            {
-                "id": e.id,
-                "nombre": e.nombre,
-                "descripcion": e.descripcion,
-                "monto": float(e.monto),
-                "metodo_pago": e.metodo_pago,
-                "fecha": e.fecha.strftime('%Y-%m-%d %H:%M')
-            }
-            for e in egresos
-        ]
+        return redirect('egresos_list_create')
 
-        return JsonResponse(data, safe=False)
+    # ───────────── LISTA (HTML) ─────────────
+    egresos = Egreso.objects.all().order_by('-fecha')
 
-    # 🔥 POST → CREAR
-    elif request.method == 'POST':
-        try:
-            body = json.loads(request.body)
-
-            egreso = Egreso.objects.create(
-                nombre=body.get('nombre'),
-                descripcion=body.get('descripcion'),
-                monto=body.get('monto'),
-                metodo_pago=body.get('metodo_pago', 'efectivo')
-            )
-
-            return JsonResponse({
-                "message": "Egreso creado correctamente",
-                "id": egreso.id
-            }, status=201)
-
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
+    return render(request, 'egresos/lista.html', {
+        'egresos': egresos
+    })
 
 @csrf_exempt
 def egreso_detail(request, pk):

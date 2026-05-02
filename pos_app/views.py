@@ -832,38 +832,7 @@ def reporte_diario_pdf(request):
 
     return response
 
-from django.contrib.auth import get_user_model
-from django.http import HttpResponse
 
-def crear_admin(request):
-    User = get_user_model()
-
-    key = request.GET.get("key")
-
-    if key != "crear123":
-        return HttpResponse("No autorizado", status=403)
-
-    try:
-        user, created = User.objects.get_or_create(
-            username="wiliam",
-            defaults={
-                "email": "jordav8a@gmail.com",
-            }
-        )
-
-        if created:
-            user.set_password("12345678")
-            user.is_superuser = True
-            user.is_staff = True
-            user.save()
-            return HttpResponse("✅ Superusuario creado correctamente")
-
-        return HttpResponse("⚠️ El usuario ya existe")
-
-    except Exception as e:
-        return HttpResponse(f"❌ Error: {str(e)}", status=500)
-    
-    from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import Egreso
 import json

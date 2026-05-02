@@ -38,5 +38,5 @@ urlpatterns = [
     path('egresos/registrar/', views.egresos_page, name='egresos_page'),
     path('egresos/guardar/', views.egresos_guardar, name='egresos_guardar'),
     path('eliminar-egresos/', views.eliminar_egresos, name='eliminar_egresos'),
-    path('egresos/', views.egresos_lista, name='egresos_lista'),
+    path('egresos/', views.egresos_lista, name='egresos_lista')
 ]

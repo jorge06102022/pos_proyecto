@@ -981,3 +981,16 @@ from .models import Egreso
 def eliminar_egresos(request):
     Egreso.objects.all().delete()
     return redirect('dashboard')
+
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+from .models import Egreso
+
+@login_required
+def egresos_lista(request):
+    egresos = Egreso.objects.all().order_by('-fecha')
+
+    return render(request, 'egresos/lista.html', {
+        'egresos': egresos
+    })

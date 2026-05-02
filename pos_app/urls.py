@@ -33,10 +33,10 @@ urlpatterns = [
     path('reporte-diario/', views.reporte_diario_pdf, name='reporte_diario'),
     path("crear-admin/", views.crear_admin),
     path('logout/', LogoutView.as_view(), name='logout'),
-    path('api/egresos/', views.egresos_list_create, name='egresos_list_create'),
+    path('egresos/', views.egresos_list_create, name='egresos_list_create'),
     path('egresos/<int:pk>/', views.egreso_detail, name='egreso_detail'),
     path('egresos/registrar/', views.egresos_page, name='egresos_page'),
     path('egresos/guardar/', views.egresos_guardar, name='egresos_guardar'),
     path('eliminar-egresos/', views.eliminar_egresos, name='eliminar_egresos'),
-    path('egresos/', views.egresos_lista, name='egresos_lista')
+    
 ]

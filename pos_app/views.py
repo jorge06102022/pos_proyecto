@@ -870,43 +870,25 @@ from .models import Egreso
 import json
 
 
-from django.http import JsonResponse
-from django.shortcuts import render
-from django.views.decorators.csrf import csrf_exempt
-from .models import Egreso
-import json
-
 @csrf_exempt
 def egresos_list_create(request):
-
-    # 🔹 Detectar si es petición AJAX / API
-    is_json = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json'
-
-    # ───────────── GET ─────────────
     if request.method == 'GET':
         egresos = Egreso.objects.all().order_by('-fecha')
 
-        # 👉 Si es API → devuelve JSON
-        if is_json:
-            data = [
-                {
-                    "id": e.id,
-                    "nombre": e.nombre,
-                    "descripcion": e.descripcion,
-                    "monto": float(e.monto),
-                    "metodo_pago": e.metodo_pago,
-                    "fecha": e.fecha.strftime('%Y-%m-%d %H:%M')
-                }
-                for e in egresos
-            ]
-            return JsonResponse(data, safe=False)
+        data = [
+            {
+                "id": e.id,
+                "nombre": e.nombre,
+                "descripcion": e.descripcion,
+                "monto": float(e.monto),
+                "metodo_pago": e.metodo_pago,
+                "fecha": e.fecha.strftime('%Y-%m-%d %H:%M')
+            }
+            for e in egresos
+        ]
 
-        # 👉 Si es navegador → render HTML
-        return render(request, 'egresos/lista.html', {
-            'egresos': egresos
-        })
+        return JsonResponse(data, safe=False)
 
-    # ───────────── POST ─────────────
     elif request.method == 'POST':
         try:
             body = json.loads(request.body)

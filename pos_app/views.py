@@ -27,24 +27,25 @@ from .forms import ProductoForm, CategoriaForm
 @login_required
 def dashboard(request):
     """Vista principal del dashboard con estadísticas."""
-    from datetime import datetime
+    from datetime import datetime, timedelta
     from decimal import Decimal
     from django.db.models import Sum, F
     from django.utils import timezone
-    from datetime import timedelta
     import json
 
-    from .models import Venta, Producto, DetalleVenta, Egreso  # 👈 IMPORTANTE
+    from .models import Venta, Producto, DetalleVenta, Egreso
 
-    hoy = timezone.now().date()
+    # 🔥 FECHA ACTUAL CON ZONA HORARIA
+    now = timezone.localtime()
+    hoy = now.date()
 
-    # 🔥 Rangos correctos (evita problemas con __date)
-    inicio_dia = datetime.combine(hoy, datetime.min.time())
-    fin_dia = datetime.combine(hoy, datetime.max.time())
+    # 🔥 RANGOS CORRECTOS CON TIMEZONE
+    inicio_dia = timezone.make_aware(datetime.combine(hoy, datetime.min.time()))
+    fin_dia = timezone.make_aware(datetime.combine(hoy, datetime.max.time()))
 
     inicio_mes = hoy.replace(day=1)
-    inicio_mes_dt = datetime.combine(inicio_mes, datetime.min.time())
-    fin_hoy_dt = datetime.combine(hoy, datetime.max.time())
+    inicio_mes_dt = timezone.make_aware(datetime.combine(inicio_mes, datetime.min.time()))
+    fin_hoy_dt = timezone.make_aware(datetime.combine(hoy, datetime.max.time()))
 
     # ───────────── VENTAS HOY ─────────────
     ventas_hoy = Venta.objects.filter(
@@ -56,7 +57,7 @@ def dashboard(request):
     ganancia_hoy = ventas_hoy.aggregate(g=Sum('total_ganancia'))['g'] or Decimal('0')
     num_ventas_hoy = ventas_hoy.count()
 
-    # ───────────── EGRESOS HOY (NUEVO) ─────────────
+    # ───────────── EGRESOS HOY ─────────────
     egresos_hoy_qs = Egreso.objects.filter(
         fecha__gte=inicio_dia,
         fecha__lte=fin_dia
@@ -76,7 +77,7 @@ def dashboard(request):
     total_mes = ventas_mes.aggregate(t=Sum('total_venta'))['t'] or Decimal('0')
     ganancia_mes = ventas_mes.aggregate(g=Sum('total_ganancia'))['g'] or Decimal('0')
 
-    # ───────────── EGRESOS MES (NUEVO) ─────────────
+    # ───────────── EGRESOS MES ─────────────
     egresos_mes_qs = Egreso.objects.filter(
         fecha__gte=inicio_mes_dt,
         fecha__lte=fin_hoy_dt
@@ -103,17 +104,17 @@ def dashboard(request):
     # ───────────── ÚLTIMAS VENTAS ─────────────
     ultimas_ventas = Venta.objects.prefetch_related('detalles__producto').order_by('-fecha')[:5]
 
-    # ───────────── GRÁFICO 7 DÍAS (VENTAS + GANANCIAS + EGRESOS) ─────────────
+    # ───────────── GRÁFICO 7 DÍAS ─────────────
     labels_7dias = []
     data_ventas_7dias = []
     data_ganancias_7dias = []
-    data_egresos_7dias = []  # 👈 NUEVO
+    data_egresos_7dias = []
 
     for i in range(6, -1, -1):
         dia = hoy - timedelta(days=i)
 
-        inicio_d = datetime.combine(dia, datetime.min.time())
-        fin_d = datetime.combine(dia, datetime.max.time())
+        inicio_d = timezone.make_aware(datetime.combine(dia, datetime.min.time()))
+        fin_d = timezone.make_aware(datetime.combine(dia, datetime.max.time()))
 
         v = Venta.objects.filter(
             fecha__gte=inicio_d,
@@ -129,7 +130,7 @@ def dashboard(request):
 
         data_ventas_7dias.append(float(v.aggregate(t=Sum('total_venta'))['t'] or 0))
         data_ganancias_7dias.append(float(v.aggregate(g=Sum('total_ganancia'))['g'] or 0))
-        data_egresos_7dias.append(float(e.aggregate(t=Sum('monto'))['t'] or 0))  # 👈 NUEVO
+        data_egresos_7dias.append(float(e.aggregate(t=Sum('monto'))['t'] or 0))
 
     # ───────────── TOP PRODUCTOS ─────────────
     top_productos = (
@@ -152,14 +153,12 @@ def dashboard(request):
         'ganancia_hoy': ganancia_hoy,
         'num_ventas_hoy': num_ventas_hoy,
 
-        # 👇 NUEVOS
         'egresos_hoy': egresos_hoy,
         'utilidad_real_hoy': utilidad_real_hoy,
 
         'total_mes': total_mes,
         'ganancia_mes': ganancia_mes,
 
-        # 👇 NUEVOS
         'egresos_mes': egresos_mes,
         'utilidad_real_mes': utilidad_real_mes,
 
@@ -172,7 +171,7 @@ def dashboard(request):
         'labels_7dias': json.dumps(labels_7dias),
         'data_ventas_7dias': json.dumps(data_ventas_7dias),
         'data_ganancias_7dias': json.dumps(data_ganancias_7dias),
-        'data_egresos_7dias': json.dumps(data_egresos_7dias),  # 👈 NUEVO
+        'data_egresos_7dias': json.dumps(data_egresos_7dias),
 
         'top_productos': list(top_productos),
     }

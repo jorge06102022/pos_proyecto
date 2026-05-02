@@ -875,24 +875,6 @@ from django.shortcuts import render
 import json
 from .models import Egreso
 
-@login_required
-def egresos_list_create(request):
-
-    if request.method == 'POST':
-        Egreso.objects.create(
-            nombre=request.POST.get('nombre'),
-            descripcion=request.POST.get('descripcion'),
-            monto=request.POST.get('monto'),
-            metodo_pago=request.POST.get('metodo_pago')
-        )
-        return redirect('egresos_list_create')
-
-    egresos = Egreso.objects.all().order_by('-fecha')
-
-    return render(request, 'egresos/lista.html', {
-        'egresos': egresos
-    })
-
 @csrf_exempt
 def egresos_list_create(request):
 
@@ -940,6 +922,43 @@ def egresos_list_create(request):
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
+
+@csrf_exempt
+def egreso_detail(request, pk):
+    try:
+        egreso = Egreso.objects.get(pk=pk)
+    except Egreso.DoesNotExist:
+        return JsonResponse({"error": "Egreso no encontrado"}, status=404)
+
+    if request.method == 'GET':
+        data = {
+            "id": egreso.id,
+            "nombre": egreso.nombre,
+            "descripcion": egreso.descripcion,
+            "monto": float(egreso.monto),
+            "metodo_pago": egreso.metodo_pago,
+            "fecha": egreso.fecha.strftime('%Y-%m-%d %H:%M')
+        }
+        return JsonResponse(data)
+
+    elif request.method == 'PUT':
+        try:
+            body = json.loads(request.body)
+
+            egreso.nombre = body.get('nombre', egreso.nombre)
+            egreso.descripcion = body.get('descripcion', egreso.descripcion)
+            egreso.monto = body.get('monto', egreso.monto)
+            egreso.metodo_pago = body.get('metodo_pago', egreso.metodo_pago)
+
+            egreso.save()
+
+            return JsonResponse({"message": "Egreso actualizado"})
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+
+    elif request.method == 'DELETE':
+        egreso.delete()
+        return JsonResponse({"message": "Egreso eliminado"})
     
 from django.shortcuts import render, redirect
 from .models import Egreso

@@ -6,8 +6,15 @@
 {% block content %}
 
 <div class="card-pos">
-    <div class="card-pos-header">
-        <span><i class="bi bi-cash-stack me-2" style="color:var(--danger)"></i>Historial de Egresos</span>
+    <div class="card-pos-header d-flex justify-content-between align-items-center">
+        <span>
+            <i class="bi bi-cash-stack me-2" style="color:var(--danger)"></i>
+            Historial de Egresos
+        </span>
+
+        <a href="{% url 'egresos_page' %}" class="btn-accent text-decoration-none">
+            <i class="bi bi-plus-circle me-1"></i> Nuevo
+        </a>
     </div>
 
     <div class="card-pos-body p-0">
@@ -22,27 +29,44 @@
                 </tr>
             </thead>
             <tbody>
-                {% for e in egresos %}
-                <tr>
-                    <td>#{{ e.id }}</td>
-                    <td>{{ e.nombre }}</td>
-                    <td style="color:var(--danger);font-weight:600">
-                        ${{ e.monto|floatformat:0 }}
-                    </td>
-                    <td style="font-size:13px;color:var(--text-secondary)">
-                        {{ e.fecha|date:"d/m/Y H:i" }}
-                    </td>
-                    <td style="color:var(--text-muted)">
-                        {{ e.descripcion|default:"-" }}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted)">
-                        No hay egresos registrados
-                    </td>
-                </tr>
-                {% endfor %}
+
+                {% if egresos %}
+                    {% for e in egresos %}
+                    <tr>
+                        <td>#{{ e.id }}</td>
+
+                        <td style="font-weight:600">
+                            {{ e.nombre }}
+                        </td>
+
+                        <td style="color:var(--danger);font-weight:700">
+                            ${{ e.monto|floatformat:0 }}
+                        </td>
+
+                        <td style="font-size:13px;color:var(--text-secondary)">
+                            {{ e.fecha|date:"d/m/Y H:i" }}
+                        </td>
+
+                        <td style="color:var(--text-muted)">
+                            {{ e.descripcion|default:"-" }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                {% else %}
+                    <tr>
+                        <td colspan="5"
+                            style="text-align:center;padding:40px;color:var(--text-muted)">
+                            
+                            <i class="bi bi-inbox" style="font-size:28px"></i>
+                            <div style="margin-top:10px;font-size:14px">
+                                No hay egresos registrados
+                            </div>
+
+                        </td>
+                    </tr>
+                {% endif %}
+
             </tbody>
         </table>
     </div>

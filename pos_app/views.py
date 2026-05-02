@@ -870,11 +870,26 @@ from .models import Egreso
 import json
 
 
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.shortcuts import render
+import json
+from .models import Egreso
+
 @csrf_exempt
 def egresos_list_create(request):
+
+    # 🔥 GET → LISTA
     if request.method == 'GET':
         egresos = Egreso.objects.all().order_by('-fecha')
 
+        # 👉 Si viene desde navegador → HTML
+        if 'text/html' in request.headers.get('Accept', ''):
+            return render(request, 'egresos/lista.html', {
+                'egresos': egresos
+            })
+
+        # 👉 Si viene desde fetch / API → JSON
         data = [
             {
                 "id": e.id,
@@ -889,6 +904,7 @@ def egresos_list_create(request):
 
         return JsonResponse(data, safe=False)
 
+    # 🔥 POST → CREAR
     elif request.method == 'POST':
         try:
             body = json.loads(request.body)
@@ -907,7 +923,6 @@ def egresos_list_create(request):
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
-        
 
 @csrf_exempt
 def egreso_detail(request, pk):

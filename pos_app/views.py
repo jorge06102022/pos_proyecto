@@ -882,13 +882,13 @@ def egresos_list_create(request):
     if request.method == 'GET':
         egresos = Egreso.objects.all().order_by('-fecha')
 
-        # ✅ SIEMPRE HTML si viene desde navegador (más confiable)
-        if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        # 👉 Si viene desde navegador → HTML
+        if 'text/html' in request.headers.get('Accept', ''):
             return render(request, 'egresos/lista.html', {
                 'egresos': egresos
             })
 
-        # 🔹 JSON solo para fetch/API
+        # 👉 Si viene desde fetch / API → JSON
         data = [
             {
                 "id": e.id,

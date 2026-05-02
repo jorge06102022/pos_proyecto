@@ -415,10 +415,9 @@
         </a>
         <div class="nav-section-title">Finanzas</div>
 
-<a href="{% url 'egresos_lista' %}" class="nav-link {% if request.resolver_match.url_name == 'egresos_lista' %}active{% endif %}">
-    <i class="bi bi-cash-coin"></i> Egresos
-</a>
-        
+<a href="{% url 'egresos_list_create' %}" class="btn-accent">
+    <i class="bi bi-cash-coin me-1"></i> Egresos
+</a>  
     </nav>
 
     <div class="sidebar-footer">

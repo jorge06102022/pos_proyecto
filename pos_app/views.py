@@ -894,41 +894,52 @@ def egresos_list_create(request):
     })
 
 @csrf_exempt
-def egreso_detail(request, pk):
-    try:
-        egreso = Egreso.objects.get(pk=pk)
-    except Egreso.DoesNotExist:
-        return JsonResponse({"error": "Egreso no encontrado"}, status=404)
+def egresos_list_create(request):
 
+    # 🔥 GET → LISTA (HTML o JSON)
     if request.method == 'GET':
-        data = {
-            "id": egreso.id,
-            "nombre": egreso.nombre,
-            "descripcion": egreso.descripcion,
-            "monto": float(egreso.monto),
-            "metodo_pago": egreso.metodo_pago,
-            "fecha": egreso.fecha.strftime('%Y-%m-%d %H:%M')
-        }
-        return JsonResponse(data)
+        egresos = Egreso.objects.all().order_by('-fecha')
 
-    elif request.method == 'PUT':
+        # 👉 SI ES NAVEGADOR → HTML
+        if request.headers.get('Accept', '').find('text/html') != -1:
+            return render(request, 'egresos/lista.html', {
+                'egresos': egresos
+            })
+
+        # 👉 SI ES API → JSON
+        data = [
+            {
+                "id": e.id,
+                "nombre": e.nombre,
+                "descripcion": e.descripcion,
+                "monto": float(e.monto),
+                "metodo_pago": e.metodo_pago,
+                "fecha": e.fecha.strftime('%Y-%m-%d %H:%M')
+            }
+            for e in egresos
+        ]
+
+        return JsonResponse(data, safe=False)
+
+    # 🔥 POST → CREAR EGRESO (NO SE TOCA)
+    elif request.method == 'POST':
         try:
             body = json.loads(request.body)
 
-            egreso.nombre = body.get('nombre', egreso.nombre)
-            egreso.descripcion = body.get('descripcion', egreso.descripcion)
-            egreso.monto = body.get('monto', egreso.monto)
-            egreso.metodo_pago = body.get('metodo_pago', egreso.metodo_pago)
+            egreso = Egreso.objects.create(
+                nombre=body.get('nombre'),
+                descripcion=body.get('descripcion'),
+                monto=body.get('monto'),
+                metodo_pago=body.get('metodo_pago', 'efectivo')
+            )
 
-            egreso.save()
+            return JsonResponse({
+                "message": "Egreso creado correctamente",
+                "id": egreso.id
+            }, status=201)
 
-            return JsonResponse({"message": "Egreso actualizado"})
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
-
-    elif request.method == 'DELETE':
-        egreso.delete()
-        return JsonResponse({"message": "Egreso eliminado"})
     
 from django.shortcuts import render, redirect
 from .models import Egreso
